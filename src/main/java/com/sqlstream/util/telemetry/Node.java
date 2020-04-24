@@ -230,19 +230,41 @@ public class Node {
 
     }
 
+    /**
+     * Return nodeId with the list of input nodes as a tooltip
+     * @return
+     */
+    String nodeCell() {
+        return "<td tooltip=\""+ iNodes+"\" href=\"bogus\">" + nodeId + ENDCELL;
+    }
+
     // TODO - put bytes into human readable form (as for df -h)
     // TODO - put time, rows, bytes into a table
 
     protected String getDotNode() {
+        Graph graph = null;
+        
+        // get graphId if this is the first node in a graph
+        // it is the first node if there are no input nodes, or if all input nodes are from other graphs
+        // TODO do we need to maintain the iNodes (and/or inputNodes) as we delete nodes from the graph?
+
+        if ((iNodes.length() == 0 || !(" "+iNodes).matches(".*"+graphId+"\\..*"))) {
+            graph = Graph.getGraph(graphId);
+
+        }
+
         return INDENT + QUOTE + nodeId + QUOTE + SPACE + 
                 "[penwidth=3.0,style=\"bold,filled\",shape=rect,fillcolor=" +
                 nodeColor + ", label=< <table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"0\"" +
                 ((queryPlan.length() == 0) ? "" : " tooltip=" + QUOTE + StringEscapeUtils.escapeHtml(queryPlan) + QUOTE + " href="+QUOTE+"bogus"+QUOTE) + ">" + 
-                STARTROW+ nodeId + ENDCELL  + lookupOperation(nameInQueryPlan) + ENDCELL + lookupStatus(lastExecResult) + ENDROW +
-                STARTROW+ "&nbsp;" + NEWCELL + "Time" + NEWCELL + "Rows" + NEWCELL + "Bytes" + ENDROW +
-                STARTROW+ "Input" + NEWCELL + inputRowtimeClock  + NEWCELL +  ( (netInputRows == 0) ? QUERY : Utils.formatLong(netInputRows) ) + NEWCELL + Utils.humanReadableByteCountSI(netInputBytes,"B") + ENDROW +
-                STARTROW+ "Output" + NEWCELL + outputRowtimeClock + NEWCELL + ( (netOutputRows == 0) ? QUERY : Utils.formatLong(netOutputRows) ) + NEWCELL + Utils.humanReadableByteCountSI(netOutputBytes,"B") +  ENDROW +
-                // NEWCELL + " In Nodes" + NEWCELL +String.join(", ",inputNodes) + ENDROW +
+                "<tr>" + nodeCell() + lookupOperation(nameInQueryPlan) + ENDCELL + lookupStatus(lastExecResult) + ENDROW +
+                // if first node in graph, include SQL if helpful
+                ((graph != null) ? graph.displaySQL(nameInQueryPlan) : "" ) +
+                STARTROW+ "&nbsp;" + NEWCELL + "Rowtime" + NEWCELL + "Rows" + NEWCELL + "Bytes" + ENDROW +
+                STARTROW+ "Input: " + NEWCELL + inputRowtimeClock  + NEWCELL +  ( (netInputRows == 0) ? QUERY : Utils.formatLong(netInputRows) ) + NEWCELL + Utils.humanReadableByteCountSI(netInputBytes,"B") + ENDROW +
+                STARTROW+ "Output: " + NEWCELL + outputRowtimeClock + NEWCELL + ( (netOutputRows == 0) ? QUERY : Utils.formatLong(netOutputRows) ) + NEWCELL + Utils.humanReadableByteCountSI(netOutputBytes,"B") +  ENDROW +
+                // if first node in graph, include remaining graph details            
+                ((graph != null) ? graph.getDotTable() : "") +
                 "</table> >];\n" ;
             
     }
@@ -250,8 +272,6 @@ public class Node {
     protected String getDotEdges() {
         StringBuffer result = new StringBuffer();
 
-        // if first node in graph, link to graph header
-        if (iNodes.length() == 0) result.append(INDENT+QUOTE+graphId+QUOTE+RIGHTARROW+QUOTE+nodeId+QUOTE+SEMICOLON+NEWLINE);
         
         // traverse outputNodes as they will have been fixed to remove deleted nodes
         for (Node childNode : outputNodes) {

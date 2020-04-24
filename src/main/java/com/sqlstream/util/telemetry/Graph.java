@@ -62,6 +62,8 @@ public class Graph {
   static final String QUERY = "?";
   static final String INDENT = "    ";
 
+  static final String SQLFONT = "<font face=\"courier\" point-size=\"8\">";
+  static final String ENDFONT = "</font>";
 
   protected static String lookupSchedState(String schedState) {
         switch (schedState) {
@@ -151,6 +153,71 @@ public class Graph {
         deleted = false;
     }
 
+    protected static Graph getGraph(String graphId) {
+        return graphHashMap.get(graphId);
+    }
+
+    /**
+     * A row including the SQL - truncated and with the full SQL in a tooltip if necessary
+     */
+    protected String displaySQL(String sql, int tabCols, int displaySize) {
+        String escapedSql = StringEscapeUtils.escapeHtml(sql);
+        String startSql = null;
+        String fromSql = null;
+
+        if (sql.length() > displaySize) {
+            int fromIndex = sql.lastIndexOf("FROM ");
+            if (fromIndex > 0) {
+                // we want to show the last FROM clause as a second line
+                fromSql = sql.substring(fromIndex, sql.length()-1);
+                startSql = sql.substring(0, (fromIndex < displaySize) ? fromIndex : displaySize);
+            } else {
+                startSql = sql.substring(0, displaySize);
+            }
+        }
+
+        return "<tr><td colspan=\"" + tabCols + "\"" +
+                ((startSql == null) 
+                        ? ">" + SQLFONT + escapedSql
+                        : (" href=\"bogus\" tooltip=\""+escapedSql+"\">" + SQLFONT + StringEscapeUtils.escapeHtml(startSql))
+                ) + 
+                ((fromSql == null) ? "" : ("<br/>"+ fromSql)) +
+                ENDFONT + ENDROW;
+
+    }
+
+    protected String getSourceSql() {
+        return sourceSql;
+    }
+
+    /**
+     * Return a including SQL (unless it matches provided nameInQueryPlan)
+     * @param nameInQueryPlan
+     * @return
+     */
+    protected String displaySQL(String nameInQueryPlan) {
+        return nameInQueryPlan.equals(sourceSql) ? "" : displaySQL(sourceSql, 4, 120);
+    }
+
+    protected String getDotTable() {
+        // exclude C and Z states
+
+        if (deleted) 
+            return "";
+        else
+            return  
+                STARTROW+ "Graph ID" + NEWCELL + "State"  + NEWCELL + "Session Id" + NEWCELL + "Statement Id" + ENDROW +
+                STARTROW+ graphId + NEWCELL  + lookupSchedState(schedState) + NEWCELL + sessionId + NEWCELL +  + statementId  + ENDROW +
+                STARTROW+ "Net Mem" + NEWCELL + "Max Mem"  + NEWCELL + "Open Time"  + NEWCELL + "Exec time"  +  ENDROW +
+                STARTROW+ Utils.humanReadableByteCountSI(netMemoryBytes,"B")+ NEWCELL  + Utils.humanReadableByteCountSI(maxMemoryBytes,"B") + NEWCELL  + totalOpeningTime + NEWCELL  + totalExecutionTime +  ENDROW +
+                STARTROW+ "When Opened" + NEWCELL + "When Started"  + NEWCELL + "When Closed"  + NEWCELL + "When Finished"  +  ENDROW +
+                STARTROW+ whenOpened + NEWCELL  + whenStarted + NEWCELL  + whenClosed + NEWCELL  + whenFinished +  ENDROW +
+                STARTROW+ "Rows" + NEWCELL + "Row Rate" + NEWCELL + "Bytes" + NEWCELL + "Byte Rate" + ENDROW +
+                STARTROW+ "Input:"  +( (netInputRows == 0) ? QUERY : Utils.formatLong(netInputRows)) + NEWCELL + Utils.formatDouble(netInputRowRate) + NEWCELL + Utils.humanReadableByteCountSI(netInputBytes,"B") + NEWCELL + Utils.formatDouble(netInputRate) + ENDROW +
+                STARTROW+ "Output"  + ( (netOutputRows == 0) ? QUERY : Utils.formatLong(netOutputRows)) + NEWCELL + Utils.formatDouble(netOutputRowRate) + NEWCELL + Utils.humanReadableByteCountSI(netOutputBytes,"B") + NEWCELL + Utils.formatDouble(netOutputRate) + ENDROW
+                ;
+    }
+ 
     protected String getDotString() {
         // exclude C and Z states
 
@@ -162,16 +229,7 @@ public class Graph {
                 ", label=< <table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"0\"" +
                 ((sourceSql.length() == 0) ? "" : " tooltip=" + QUOTE + StringEscapeUtils.escapeHtml(sourceSql) + QUOTE + " href="+QUOTE+"bogus"+QUOTE) + 
                 ">" + 
-                STARTROW+ "Graph ID" + NEWCELL + "State"  + NEWCELL + "Session Id" + NEWCELL + "Statement Id" + ENDROW +
-                STARTROW+ graphId + NEWCELL  + lookupSchedState(schedState) + NEWCELL + sessionId + NEWCELL +  + statementId  + ENDROW +
-                STARTROW+ " " + NEWCELL+ "Net Mem" + NEWCELL + "Max Mem"  + NEWCELL + "Open Time"  + NEWCELL + "Exec time"  +  ENDROW +
-                STARTROW+ " " + NEWCELL + Utils.humanReadableByteCountSI(netMemoryBytes,"B")+ NEWCELL  + Utils.humanReadableByteCountSI(maxMemoryBytes,"B") + NEWCELL  + totalOpeningTime + NEWCELL  + totalExecutionTime +  ENDROW +
-                STARTROW+ "Time:" + NEWCELL + "Opened" + NEWCELL + "Started"  + NEWCELL + "Closed"  + NEWCELL + "Finished"  +  ENDROW +
-                STARTROW+ " " + NEWCELL + whenOpened + NEWCELL  + whenStarted + NEWCELL  + whenClosed + NEWCELL  + whenFinished +  ENDROW +
-                STARTROW+ " " + NEWCELL + "Rows" + NEWCELL + "Row Rate" + NEWCELL + "Bytes" + NEWCELL + "Byte Rate" + ENDROW +
-                STARTROW+ "Input:" + NEWCELL +( (netInputRows == 0) ? QUERY : Utils.formatLong(netInputRows)) + NEWCELL + Utils.formatDouble(netInputRowRate) + NEWCELL + Utils.humanReadableByteCountSI(netInputBytes,"B") + NEWCELL + Utils.formatDouble(netInputRate) + ENDROW +
-                STARTROW+ "Output" + NEWCELL + ( (netOutputRows == 0) ? QUERY : Utils.formatLong(netOutputRows)) + NEWCELL + Utils.formatDouble(netOutputRowRate) + NEWCELL + Utils.humanReadableByteCountSI(netOutputBytes,"B") + NEWCELL + Utils.formatDouble(netOutputRate) + ENDROW +
-                //"<tr><td colspan=\"5\">"+ StringEscapeUtils.escapeHtml(sourceSql) + ENDROW +
+                getDotTable() +
                 "</table> >];\n" ;
             
     }

@@ -229,11 +229,12 @@ public class TelemetryGraph
         try (FileWriter fw = new FileWriter(new File("telemetry_"+i+".dot"))) {
             fw.write("digraph {\n");
 
-            // graphs
-
+            /* Exclude graphs - instead we include graph data into first node
             for (Graph graph: Graph.graphHashMap.values()) {
                 fw.write(graph.getDotString());
             }
+            */
+            
             // nodes
             for (Node node : Node.nodeHashMap.values()) {
                 fw.write(node.getDotString(hideDeletedNodes));
