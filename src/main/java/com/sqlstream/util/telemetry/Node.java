@@ -162,12 +162,12 @@ public class Node {
         }
     }
 
-    protected String getDotString(boolean hideDeleted) {
-        if (deleted && hideDeleted) {
+    protected String getDotString(boolean showDeleted, boolean showGraphDetail) {
+        if (deleted && !showDeleted) {
             /* discard deleted elements */
             return "/* "+nodeId+ " */" + NEWLINE;
         } else {
-            return getDotNode() + getDotEdges();
+            return getDotNode(showGraphDetail) + getDotEdges();
         }
     }  
 
@@ -241,7 +241,7 @@ public class Node {
     // TODO - put bytes into human readable form (as for df -h)
     // TODO - put time, rows, bytes into a table
 
-    protected String getDotNode() {
+    protected String getDotNode(boolean showGraphDetail) {
         Graph graph = null;
         
         // get graphId if this is the first node in a graph
@@ -264,7 +264,7 @@ public class Node {
                 STARTROW+ "Input: " + NEWCELL + inputRowtimeClock  + NEWCELL +  ( (netInputRows == 0) ? QUERY : Utils.formatLong(netInputRows) ) + NEWCELL + Utils.humanReadableByteCountSI(netInputBytes,"B") + ENDROW +
                 STARTROW+ "Output: " + NEWCELL + outputRowtimeClock + NEWCELL + ( (netOutputRows == 0) ? QUERY : Utils.formatLong(netOutputRows) ) + NEWCELL + Utils.humanReadableByteCountSI(netOutputBytes,"B") +  ENDROW +
                 // if first node in graph, include remaining graph details            
-                ((graph != null) ? graph.getDotTable() : "") +
+                ((graph != null && showGraphDetail) ? graph.getDotTable() : "") +
                 "</table> >];\n" ;
             
     }

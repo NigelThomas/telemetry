@@ -150,5 +150,9 @@ do
 	linkto $SQLSTREAM_HOME/lib $f
 done
 
+for f in args4j.jar 
+do
+	linkto $SQLSTREAM_HOME/../clienttools/WebAgent/lib $f
+done
 
 cd -

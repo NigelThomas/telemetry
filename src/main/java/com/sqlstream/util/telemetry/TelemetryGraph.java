@@ -16,6 +16,10 @@ import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
+import org.kohsuke.args4j.Option;
+
 import org.apache.commons.lang.StringEscapeUtils;
 
 public class TelemetryGraph
@@ -23,17 +27,114 @@ public class TelemetryGraph
     public static final Logger tracer =
         Logger.getLogger(TelemetryGraph.class.getName());
 
-    static Connection connection = null;
+    Connection connection = null;
  
-    static boolean hideDeletedNodes = true;
+    @Option(
+            name = "--help",
+            usage = "print help message and quit",
+            required = false)
+    private boolean help = false;
+
+    @Option(
+            name = "-f",
+            aliases = {"--frequency"},
+            usage = "repeat every <frequency> seconds",
+            metaVar = "frequency",
+            required = false)
+
+    private int sleepPeriod = 10;
+    long sleepTimeMillis;
+
+    @Option(
+            name = "-r",
+            aliases = {"--repeat-count"},
+            usage = "generate <repeat-count> outputs",
+            metaVar = "repeat-count",
+            required = false)
+
+    static private int repeatCount = 3; 
+
+    @Option(
+            name = "-g",
+            aliases = {"--show-graph-detail"},
+            usage = "include detailed info for each stream graph on the first node for that graph",
+            required = false)
+    static private boolean showGraphDetail = false;
+
+    @Option(
+            name = "-p",
+            aliases = {"--show-proxy-nodes"},
+            usage = "include certain proxy nodes that are normally hidden",
+            required = false)
+    static private boolean showProxyDetail = false;
+
+    /*
+    @Option(
+            name = "-su",
+            aliases = {"--sqlstream-url"},
+            usage = "jdbc URL to the sqlstream server",
+            metaVar = "URL",
+            required = false)
+    private String sqlstreamUrl = "";
+
+    @Option(
+            name = "-sn",
+            aliases = {"--sqlstream-name"},
+            usage = "user name on the sqlstream server",
+            metaVar = "NAME",
+            required = false)
+    private String sqlstreamName = "";
+
+    @Option(
+            name = "-sp",
+            aliases = {"--sqlstream-password"},
+            usage = "user password on the sqlstream server",
+            metaVar = "PASSWORD",
+            required = false)
+    private String sqlstreamPassword = "";
+    */
+
+    private void usage(CmdLineParser parser) throws IOException
+    {
+        System.err.println(
+                "telegraph.sh [OPTIONS...] ARGUMENTS...");
+        parser.printUsage(System.err);
+        System.err.println();
+    }
+
+    public void initialize(String[] args) throws IOException
+    {
+        CmdLineParser parser = new CmdLineParser(this);
+        parser.setUsageWidth(120);
+        try {
+            parser.parseArgument(args);
+            if (help) {
+                usage(parser);
+                System.exit(0);
+            }
+        } catch (CmdLineException e) {
+            System.err.println(e.getMessage());
+            usage(parser);
+            System.exit(-1);
+        }
+
+        sleepTimeMillis = sleepPeriod * 1000;
+
+    }
 
     public static void main(String[] args)  {
         tracer.info("Starting");
 
-        int repeatCount = 3; // TODO make this an argument
-        long sleepTimeMillis = 10000; // TODO make this an argument
+        TelemetryGraph tg = new TelemetryGraph();
 
+
+        tg.execute(args);
+    } 
+
+    void execute(String[] args) {
         try {
+            initialize(args);
+
             connection = DriverManager.getConnection("jdbc:sqlstream:sdp://localhost:5570;user=sa;password=mumble;autoCommit=false");
                     
             // do the time formatting / defaulting in SQL for convenience
@@ -63,7 +164,7 @@ public class TelemetryGraph
                     ", CAST(COALESCE(OUTPUT_ROWTIME_CLOCK, CURRENT_TIMESTAMP) AS VARCHAR(32)) AS OUTPUT_ROWTIME_CLOCK" + 
                     ", NAME_IN_QUERY_PLAN, QUERY_PLAN, INPUT_NODES" +
             " from TABLE(SYS_BOOT.MGMT.getStreamOperatorInfo(0,0))" +
-            " WHERE LAST_EXEC_RESULT <> 'EOS' AND (NAME_IN_QUERY_PLAN NOT LIKE 'StreamSinkPortRel%' AND NAME_IN_QUERY_PLAN NOT LIKE 'NetworkRel%')";
+            " WHERE (NAME_IN_QUERY_PLAN NOT LIKE 'StreamSinkPortRel%' AND NAME_IN_QUERY_PLAN NOT LIKE 'NetworkRel%')";
             
             PreparedStatement operatorPs = connection.prepareStatement(operatorSql);
 
@@ -191,8 +292,11 @@ public class TelemetryGraph
              
             }
         } catch (SQLException se) {
-            tracer.severe("SQL Exception: "+se.getMessage());
-        }  finally {
+            tracer.log(Level.SEVERE, "SQL Exception", se);
+        } catch (IOException ioe) {
+            tracer.log(Level.SEVERE, "IO Exception", ioe);
+
+        } finally {
 
             if (connection != null) {
                 try {
@@ -205,7 +309,7 @@ public class TelemetryGraph
 
     }
 
-    private static void processNodes() {
+    private void processNodes() {
 
         // link up output nodes   
         for (Node node : Node.nodeHashMap.values()) {
@@ -215,7 +319,7 @@ public class TelemetryGraph
         // now clean out all marked deleted nodes
         // we have to remove deleted child nodes and replace with descendant nodes (if any)
 
-        if (hideDeletedNodes) {
+        if (!showProxyDetail) {
             for (Node node : Node.nodeHashMap.values()) {
                 node.unlinkDeleted();
             }
@@ -225,7 +329,7 @@ public class TelemetryGraph
 
     
        
-    private static void writeNodesAndEdges(int i) {
+    private void writeNodesAndEdges(int i) {
         try (FileWriter fw = new FileWriter(new File("telemetry_"+i+".dot"))) {
             fw.write("digraph {\n");
 
@@ -234,10 +338,10 @@ public class TelemetryGraph
                 fw.write(graph.getDotString());
             }
             */
-            
+
             // nodes
             for (Node node : Node.nodeHashMap.values()) {
-                fw.write(node.getDotString(hideDeletedNodes));
+                fw.write(node.getDotString(showProxyDetail, showGraphDetail));
             }
 
             fw.write("}");
