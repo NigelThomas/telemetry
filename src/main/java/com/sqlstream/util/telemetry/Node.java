@@ -45,6 +45,7 @@ public class Node {
    static final String SEMICOLON = ";";
    static final String STARTROW = "<tr><td>";
    static final String NEWCELL = "</td><td>";
+   static final String ENDCELL = "</td>";
    static final String ENDROW = "</td></tr>";
    static final String QUOTE = "\"";
    static final String SPACE = " ";
@@ -53,6 +54,11 @@ public class Node {
    static final String QUERY = "?";
    static final String INDENT = "    ";
 
+   // cell colors
+   static final String GREENCELL = "<td bgcolor=\"green\">";
+   static final String REDCELL = "<td bgcolor=\"red\">";
+   static final String YELLOWCELL = "<td bgcolor=\"yellow\">";
+   static final String BLUECELL = "<td bgcolor=\"blue\">";
 
    // construct with raw data
     protected Node
@@ -88,6 +94,7 @@ public class Node {
             this.inputNodes = inputNodes.split(SPACE);
         }
 
+        /*
         switch (lastExecResult) {
             case "UND":
                 nodeColor = "green";
@@ -109,6 +116,8 @@ public class Node {
             default:
                 nodeColor = "white";
         }
+        */ 
+        nodeColor = "white";
 
         if (nameInQueryPlan.matches(".*\\.pro") ||
             nameInQueryPlan.matches("\\$Proxy.*")) {
@@ -141,7 +150,11 @@ public class Node {
         if (tracer.isLoggable(Level.FINER)) tracer.finer("linkOutputNode: node="+nodeId+", iNodes='"+iNodes+"', list="+Arrays.toString(inputNodes)+", listlen="+inputNodes.length);
         
         for (String inputNode : inputNodes) {
-            nodeHashMap.get(inputNode).addOutputNode(this);
+            try {
+                nodeHashMap.get(inputNode).addOutputNode(this);
+            } catch (NullPointerException npe) {
+                tracer.log(Level.WARNING, "No node '"+ inputNode+"'");
+            }
         }
     }
 
@@ -154,6 +167,24 @@ public class Node {
         }
     }  
 
+    protected String lookupStatus(String in) {
+        // Underflow: Input Buffer is empty, Overflow: Output Buffer is full, Yield: Ready to run, RUN: Running
+        switch (in) {
+            case "UND":
+                return GREENCELL+"Input buffer is empty";
+            case "OVF":
+                return REDCELL+"Overflow - output buffer is full";
+            case "YLD":
+                return YELLOWCELL+"Ready to run";
+            case "RUN":
+                return GREENCELL+"Running";
+            case "EOS":
+                return BLUECELL+"End of Stream";
+
+            default:
+                return YELLOWCELL+in;
+        }
+    }
 
     // TODO - put bytes into human readable form (as for df -h)
     // TODO - put time, rows, bytes into a table
@@ -163,10 +194,10 @@ public class Node {
                 "[penwidth=3.0,style=\"bold,filled\",shape=rect,fillcolor=" +
                 nodeColor + ", label=< <table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"0\"" +
                 ((queryPlan.length() == 0) ? "" : " tooltip=" + QUOTE + StringEscapeUtils.escapeHtml(queryPlan) + QUOTE + " href="+QUOTE+"bogus"+QUOTE) + ">" + 
-                STARTROW+ nodeId + NEWCELL + lastExecResult + "</td><td colspan=\"2\"><B>" + nameInQueryPlan + "</B>" + ENDROW +
+                STARTROW+ nodeId + ENDCELL + lookupStatus(lastExecResult) + ENDCELL + "<td colspan=\"2\"><B>" + nameInQueryPlan + "</B>" + ENDROW +
                 STARTROW+ "&nbsp;" + NEWCELL + "Time" + NEWCELL + "Rows" + NEWCELL + "Bytes" + ENDROW +
-                STARTROW+ "Input" + NEWCELL + inputRowtimeClock  + NEWCELL +  ( (netInputRows == 0) ? QUERY : netInputRows ) + NEWCELL + Utils.humanReadableByteCountSI(netInputBytes,"B") + ENDROW +
-                STARTROW+ "Output" + NEWCELL + outputRowtimeClock + NEWCELL + ( (netOutputRows == 0) ? QUERY : netOutputRows ) + NEWCELL + Utils.humanReadableByteCountSI(netOutputBytes,"B") +  ENDROW +
+                STARTROW+ "Input" + NEWCELL + inputRowtimeClock  + NEWCELL +  ( (netInputRows == 0) ? QUERY : Utils.formatLong(netInputRows) ) + NEWCELL + Utils.humanReadableByteCountSI(netInputBytes,"B") + ENDROW +
+                STARTROW+ "Output" + NEWCELL + outputRowtimeClock + NEWCELL + ( (netOutputRows == 0) ? QUERY : Utils.formatLong(netOutputRows) ) + NEWCELL + Utils.humanReadableByteCountSI(netOutputBytes,"B") +  ENDROW +
                 // NEWCELL + " In Nodes" + NEWCELL +String.join(", ",inputNodes) + ENDROW +
                 "</table> >];\n" ;
             
@@ -222,6 +253,10 @@ public class Node {
                 parentNode.replaceChildren(this, childNodes);
             }
             
+        } else {
+            // mark the corresponding graph as undeleted
+            // NOTE: wasteful because every node in the graph so marks it
+            Graph.graphHashMap.get(graphId).setUndeleted();
         }
     }
 
@@ -233,7 +268,7 @@ public class Node {
      */
     protected void replaceChildren(Node deletedChild, Set<Node> childNodes) {
         if (!deleted) {
-            if (tracer.isLoggable(Level.INFO)) tracer.info("Node:"+nodeId+" - really replacing deleted "+deletedChild.getNodeId()+" with " + nodeSetToString(childNodes));
+            if (tracer.isLoggable(Level.FINE)) tracer.fine("Node:"+nodeId+" - really replacing deleted "+deletedChild.getNodeId()+" with " + nodeSetToString(childNodes));
             if (tracer.isLoggable(Level.FINEST)) tracer.finest("Set before: "+nodeSetToString(outputNodes));
             
             outputNodes.remove(deletedChild);

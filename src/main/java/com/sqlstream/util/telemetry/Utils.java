@@ -3,7 +3,19 @@ package com.sqlstream.utils.telemetry;
 import java.text.CharacterIterator;
 import java.text.StringCharacterIterator;
 
+import java.text.NumberFormat;
+import java.util.Locale;
+
 public class Utils {
+
+    public static String formatLong(long l) {
+        return String.format("%,d", l);
+    }
+
+    public static String formatDouble(double d) {
+        return String.format("%,6g", d);
+    }
+
     public static String humanReadableByteCountSI(long bytes, String suffix) {
         if (-1000 < bytes && bytes < 1000) {
             return bytes + " B";

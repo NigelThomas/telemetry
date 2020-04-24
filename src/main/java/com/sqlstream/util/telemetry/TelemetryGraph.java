@@ -23,8 +23,6 @@ public class TelemetryGraph
     public static final Logger tracer =
         Logger.getLogger(TelemetryGraph.class.getName());
 
-    static LinkedHashMap<String, Graph> graphHashMap = null;
-    static LinkedHashMap<String, Node> nodeHashMap = null;
     static Connection connection = null;
  
     static boolean hideDeletedNodes = true;
@@ -71,9 +69,9 @@ public class TelemetryGraph
 
 
             // Read N times from statement graph
-            for (int i=1; i <= repeatCount; i++) {
+            for (int i=0; i <= repeatCount; i++) {
                 
-                if (i > 1) {
+                if (i > 0) {
                     // wait a bit before re-running
                     tracer.info("Sleeping between iterations");           
                     try {
@@ -85,7 +83,7 @@ public class TelemetryGraph
 
                 tracer.info("Starting iteration "+i);
 
-                graphHashMap = new LinkedHashMap<>();
+                Graph.graphHashMap = new LinkedHashMap<>();
                 ResultSet graphRs = graphPs.executeQuery();
 
                 while (graphRs.next()) {
@@ -150,9 +148,9 @@ public class TelemetryGraph
                         , whenClosed 
                         );
                     
-                    graphHashMap.put(graphId, graph);
                 }
-                nodeHashMap = new LinkedHashMap<>();
+
+                Node.nodeHashMap = new LinkedHashMap<>();
 
                 ResultSet operRs = operatorPs.executeQuery();
                 while (operRs.next()) {
@@ -177,17 +175,18 @@ public class TelemetryGraph
                                                     , inputRowtimeClock, outputRowtimeClock
                                                     , nameInQueryPlan, queryPlan, inputNodes
                                                     );
-                    // retain in a hashmap
-                    nodeHashMap.put(nodeId, node);
                 }
 
-                // we have the raw data; now link up the nodes with edges and filter out unwanted nodes / edges
 
-                processNodes();
+                if (i > 0) {
+                    // don't report first dataset because graphs and nodes won't match up
 
-                // and write out all nodes and edges we haven't deleted
+                    // we have the raw data; now link up the nodes with edges and filter out unwanted nodes / edges
+                    processNodes();
 
-                writeNodesAndEdges(i);
+                    // and write out all nodes and edges we haven't deleted
+                    writeNodesAndEdges(i);
+                }
 
              
             }
@@ -209,7 +208,7 @@ public class TelemetryGraph
     private static void processNodes() {
 
         // link up output nodes   
-        for (Node node : nodeHashMap.values()) {
+        for (Node node : Node.nodeHashMap.values()) {
             node.linkOutputNodes();
         }
 
@@ -217,7 +216,7 @@ public class TelemetryGraph
         // we have to remove deleted child nodes and replace with descendant nodes (if any)
 
         if (hideDeletedNodes) {
-            for (Node node : nodeHashMap.values()) {
+            for (Node node : Node.nodeHashMap.values()) {
                 node.unlinkDeleted();
             }
         }
@@ -232,11 +231,11 @@ public class TelemetryGraph
 
             // graphs
 
-            for (Graph graph: graphHashMap.values()) {
+            for (Graph graph: Graph.graphHashMap.values()) {
                 fw.write(graph.getDotString());
             }
             // nodes
-            for (Node node : nodeHashMap.values()) {
+            for (Node node : Node.nodeHashMap.values()) {
                 fw.write(node.getDotString(hideDeletedNodes));
             }
 
@@ -244,354 +243,6 @@ public class TelemetryGraph
             fw.close();
         } catch (IOException ioe) {
             tracer.log(Level.SEVERE, "Exception writing file #"+i, ioe);
-        }
-    }
-
-    // constants for dot
-    static final String SEMICOLON = ";";
-    static final String STARTROW = "<tr><td>";
-    static final String NEWCELL = "</td><td>";
-    static final String ENDROW = "</td></tr>";
-    static final String QUOTE = "\"";
-    static final String SPACE = " ";
-    static final String NEWLINE = "\n";
-    static final String RIGHTARROW = " -> ";
-    static final String QUERY = "?";
-    static final String INDENT = "    ";
-
-    public static class Graph {
-        String graphId;
-        int statementId;
-        int sessionId;
-        String sourceSql;
-        String schedState;
-        String closeMode;
-        boolean isGlobalNexus;
-        boolean isAutoClose;
-        int numNodes;
-        int numLiveNodes;
-        int numDataBuffers;
-        double totalExecutionTime;
-        double totalOpeningTime;
-        double totalClosingTime;
-        long netInputBytes;
-        long netInputRows;
-        double netInputRate;
-        double netInputRowRate;
-        long netOutputBytes;
-        long netOutputRows;
-        double netOutputRate;
-        double netOutputRowRate;
-        long netMemoryBytes;
-        long maxMemoryBytes;
-        String whenOpened;
-        String whenStarted;
-        String whenFinished;
-        String whenClosed;
-
-        protected Graph
-            ( String graphId
-            , int statementId
-            , int sessionId
-            , String sourceSql
-            , String schedState
-            , String closeMode
-            , boolean isGlobalNexus
-            , boolean isAutoClose
-            , int numNodes
-            , int numLiveNodes
-            , int numDataBuffers
-            , double totalExecutionTime
-            , double totalOpeningTime
-            , double totalClosingTime
-            , long netInputBytes
-            , long netInputRows
-            , double netInputRate
-            , double netInputRowRate
-            , long netOutputBytes
-            , long netOutputRows
-            , double netOutputRate
-            , double netOutputRowRate
-            , long netMemoryBytes
-            , long maxMemoryBytes
-            , String whenOpened
-            , String whenStarted
-            , String whenFinished
-            , String whenClosed
-            ) {
-                this.graphId = graphId;
-                this.statementId = statementId;
-                this.sessionId = sessionId;
-                this.sourceSql = sourceSql;
-                this.schedState = schedState;
-                this.closeMode = closeMode;
-                this.isGlobalNexus = isGlobalNexus;
-                this.isAutoClose = isAutoClose;
-                this.numNodes = numNodes;
-                this.numLiveNodes = numLiveNodes;
-                this.numDataBuffers = numDataBuffers;
-                this.totalExecutionTime = totalExecutionTime;
-                this.totalOpeningTime = totalOpeningTime;
-                this.totalClosingTime = totalClosingTime;
-                this.netInputBytes = netInputBytes;
-                this.netInputRows = netInputRows;
-                this.netInputRate = netInputRate;
-                this.netInputRowRate = netInputRowRate;
-                this.netOutputBytes = netOutputBytes;
-                this.netOutputRows = netOutputRows;
-                this.netOutputRate = netOutputRate;
-                this.netOutputRowRate = netOutputRowRate;
-                this.netMemoryBytes = netMemoryBytes;
-                this.maxMemoryBytes = maxMemoryBytes;
-                this.whenOpened = whenOpened;
-                this.whenStarted = whenStarted;
-                this.whenFinished = whenFinished;
-                this.whenClosed = whenClosed;
-        }
-
-        protected String getDotString() {
-            return INDENT + QUOTE + graphId + QUOTE + SPACE + 
-                    "[penwidth=3.0,style=\"bold,filled\",shape=rect,fillcolor=white" +
-                   ", label=< <table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"0\"" +
-                   ((sourceSql.length() == 0) ? "" : " tooltip=" + QUOTE + StringEscapeUtils.escapeHtml(sourceSql) + QUOTE + " href="+QUOTE+"bogus"+QUOTE) + ">" + 
-                   STARTROW+ "Graph ID" + NEWCELL + "State"  + NEWCELL + "Session Id" + NEWCELL + "Statement Id" + ENDROW +
-                   STARTROW+ graphId + NEWCELL  + schedState + NEWCELL + sessionId + NEWCELL +  + statementId  + ENDROW +
-                   STARTROW+ "Net Mem" + NEWCELL + "Max Mem"  + NEWCELL + "Open Time"  + NEWCELL + "Exec time"  +  ENDROW +
-                   STARTROW+ netMemoryBytes+ NEWCELL  + maxMemoryBytes + NEWCELL  + totalOpeningTime + NEWCELL  + totalExecutionTime +  ENDROW +
-                   STARTROW+ " " + NEWCELL + "Rows" + NEWCELL + "Row Rate" + NEWCELL + "Bytes" + NEWCELL + "Byte Rate" + ENDROW +
-                   STARTROW+ "Input" + NEWCELL +( (netInputRows == 0) ? QUERY : netInputRows) + NEWCELL + netInputRate + NEWCELL + netInputBytes + NEWCELL + netInputRate + ENDROW +
-                   STARTROW+ "Output" + NEWCELL + ( (netOutputRows == 0) ? QUERY : netOutputRows) + NEWCELL + netOutputRowRate + NEWCELL + netOutputBytes + NEWCELL + netOutputRate + ENDROW +
-                   "</table> >];\n" ;
-                
-        }
-
-    }
-
-
-    public static class Node {
-        String graphId;
-        String nodeId;
-        String lastExecResult;
-        long netInputRows;
-        long netInputBytes;
-        long netOutputRows;
-        long netOutputBytes;
-        String inputRowtimeClock;
-        String outputRowtimeClock;
-        String nameInQueryPlan;
-        String queryPlan;
-        String iNodes;
-        String[] inputNodes;
-
-        String nodeColor;
-
-        Set<Node> outputNodes = new HashSet<>();
-
-  
-        boolean deleted = false;
-
-        // construct with raw data
-        protected Node
-                        ( String graphId
-                        , String nodeId 
-                        , String lastExecResult
-                        , long netInputRows
-                        , long netInputBytes
-                        , long netOutputRows
-                        , long netOutputBytes
-                        , String inputRowtimeClock
-                        , String outputRowtimeClock
-                        , String nameInQueryPlan
-                        , String queryPlan
-                        , String inputNodes
-                        ){
-            this.graphId = graphId;
-            this.nodeId = nodeId;
-            this.lastExecResult = lastExecResult;
-            this.netInputRows = netInputRows;
-            this.netInputBytes = netInputBytes;
-            this.netOutputRows = netOutputRows;
-            this.netOutputBytes = netOutputBytes;
-            this.inputRowtimeClock = inputRowtimeClock;
-            this.outputRowtimeClock = outputRowtimeClock; 
-            this.nameInQueryPlan = nameInQueryPlan;
-            this.queryPlan = queryPlan;
-            this.iNodes = inputNodes;
-
-            if (inputNodes == null || inputNodes.length() == 0) {
-                this.inputNodes = new String[]{};
-            } else {
-                this.inputNodes = inputNodes.split(SPACE);
-            }
-
-            switch (lastExecResult) {
-                case "UND":
-                    nodeColor = "green";
-                    break;
-                case "OVR":
-                    nodeColor = "red";
-                    break;
-
-                case "YLD":
-                    nodeColor = "yellow";
-                    break;
-
-                case "EOS":
-                    // these are excluded in the query
-                    // TODO - allow inclusion
-                    nodeColor = "blue";
-                    break;
-
-                default:
-                    nodeColor = "white";
-            }
-
-            if (nameInQueryPlan.matches(".*\\.pro") ||
-                nameInQueryPlan.matches("\\$Proxy.*")) {
-
-                deleted = true; 
-            }
-
-            if (deleted) nodeColor = "gray";
-
-        }
-
-        protected String getNodeId() {
-            return nodeId;
-        }
-
-        protected boolean isDeleted() {
-            return deleted;
-        }
-
-        // can only be executed once all nodes are loaded
-        protected void addOutputNode(Node outputNode) {
-            outputNodes.add(outputNode);
-        }
-        
-        // take all the input nodes in this node and make the corresponding output links from there to here
-        protected void linkOutputNodes() {
-            
-            if (tracer.isLoggable(Level.FINER)) tracer.finer("linkOutputNode: node="+nodeId+", iNodes='"+iNodes+"', list="+Arrays.toString(inputNodes)+", listlen="+inputNodes.length);
-            
-            for (String inputNode : inputNodes) {
-                nodeHashMap.get(inputNode).addOutputNode(this);
-            }
-        }
-
-        protected String getDotString(boolean hideDeleted) {
-           if (deleted && hideDeleted) {
-               /* discard deleted elements */
-               return "/* "+nodeId+ " */" + NEWLINE;
-           } else {
-                return getDotNode() + getDotEdges();
-           }
-        }  
-
-
-        // TODO - put bytes into human readable form (as for df -h)
-        // TODO - put time, rows, bytes into a table
-
-        protected String getDotNode() {
-            return INDENT + QUOTE + nodeId + QUOTE + SPACE + 
-                    "[penwidth=3.0,style=\"bold,filled\",shape=rect,fillcolor=" +
-                   nodeColor + ", label=< <table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"0\"" +
-                   ((queryPlan.length() == 0) ? "" : " tooltip=" + QUOTE + StringEscapeUtils.escapeHtml(queryPlan) + QUOTE + " href="+QUOTE+"bogus"+QUOTE) + ">" + 
-                   STARTROW+ nodeId + NEWCELL + lastExecResult + "</td><td colspan=\"2\"><B>" + nameInQueryPlan + "</B>" + ENDROW +
-                   STARTROW+ "&nbsp;" + NEWCELL + "Time" + NEWCELL + "Rows" + NEWCELL + "Bytes" + ENDROW +
-                   STARTROW+ "Input" + NEWCELL + inputRowtimeClock  + NEWCELL +  ( (netInputRows == 0) ? QUERY : netInputRows) + NEWCELL + netInputBytes + ENDROW +
-                   STARTROW+ "Output" + NEWCELL + outputRowtimeClock + NEWCELL + ( (netOutputRows == 0) ? QUERY : netOutputRows) + NEWCELL + netOutputBytes +  ENDROW +
-                  // NEWCELL + " In Nodes" + NEWCELL +String.join(", ",inputNodes) + ENDROW +
-                   "</table> >];\n" ;
-                
-        }
-
-        protected String getDotEdges() {
-            StringBuffer result = new StringBuffer();
-
-            // if first node in graph, link to graph header
-            if (iNodes.length() == 0) result.append(INDENT+QUOTE+graphId+QUOTE+RIGHTARROW+QUOTE+nodeId+QUOTE+SEMICOLON+NEWLINE);
-            
-            // traverse outputNodes as they will have been fixed to remove deleted nodes
-            for (Node childNode : outputNodes) {
-                result.append(INDENT+INDENT+QUOTE + nodeId + QUOTE + RIGHTARROW + QUOTE + childNode.getNodeId() + QUOTE + SEMICOLON + NEWLINE);
-            }
-
-            return result.toString();
-        }
-
-        /**
-         * getChildren
-         *
-         * @return a set of (non-deleted) child (output) node ids
-         */
-         
-        protected Set<Node> getChildren(Set<Node> inputSet) {
-
-            for (Node childNode : outputNodes) {
-                if (childNode.isDeleted()) {
-                    // descend looking for more
-                    inputSet.addAll(childNode.getChildren(inputSet));
-                } else {
-                    // stop here and add node to list of children
-                    inputSet.add(childNode);
-                }
-            }
-            if (tracer.isLoggable(Level.FINER)) tracer.finer("node:"+nodeId+", undeleted children:"+nodeSetToString(inputSet));
-            return inputSet;
-        }
-
-        protected void unlinkDeleted() {
-            if (deleted) {
-    
-                // make a list of the nearest undeleted descendents
-    
-                Set<Node> childNodes = new HashSet<>();
-                childNodes = getChildren(childNodes);
-                
-                for (String nodeId : inputNodes) {
-                    if (tracer.isLoggable(Level.FINEST)) tracer.finest("replacing children for "+nodeId);
-                    
-                    Node parentNode = nodeHashMap.get(nodeId);
-                    parentNode.replaceChildren(this, childNodes);
-                }
-                
-            }
-        }
-    
-        /**
-         * Replace children of a parent node; only do it if the parent isn't itself deleted
-         * 
-         * @param deletedChild - the deleted node to remove / short-circuit
-         * @param childNodes - the node(s) to short-circuit to
-         */
-        protected void replaceChildren(Node deletedChild, Set<Node> childNodes) {
-            if (!deleted) {
-                if (tracer.isLoggable(Level.INFO)) tracer.info("Node:"+nodeId+" - really replacing deleted "+deletedChild.getNodeId()+" with " + nodeSetToString(childNodes));
-                if (tracer.isLoggable(Level.FINEST)) tracer.finest("Set before: "+nodeSetToString(outputNodes));
-                
-                outputNodes.remove(deletedChild);
-                outputNodes.addAll(childNodes);
-                
-                if (tracer.isLoggable(Level.FINEST)) tracer.finest("Set after: "+nodeSetToString(outputNodes));
-            }
-        }
-
-        /**
-         * Convenience for tracing sets of nodes
-         * @param nodeSet
-         * @return
-         */
-        static String nodeSetToString(Set<Node> nodeSet) {
-            StringBuffer sb = new StringBuffer("[");
-            String delim = "";
-            for (Node node : nodeSet) {
-                sb.append(delim);
-                sb.append(node.getNodeId());
-                delim = ", ";
-            }
-            sb.append("]");
-            return sb.toString();
         }
     }
 
