@@ -44,8 +44,9 @@ public class Node {
    // constants for dot
    static final String SEMICOLON = ";";
    static final String STARTROW = "<tr><td>";
-   static final String NEWCELL = "</td><td>";
+   static final String STARTCELL = "<td>";
    static final String ENDCELL = "</td>";
+   static final String NEWCELL = ENDCELL+STARTCELL;
    static final String ENDROW = "</td></tr>";
    static final String QUOTE = "\"";
    static final String SPACE = " ";
@@ -59,6 +60,9 @@ public class Node {
    static final String REDCELL = "<td bgcolor=\"red\">";
    static final String YELLOWCELL = "<td bgcolor=\"yellow\">";
    static final String BLUECELL = "<td bgcolor=\"blue\">";
+
+   static final String BOLD = "<b>";
+   static final String UNBOLD = "</b>";
 
    // construct with raw data
     protected Node
@@ -167,6 +171,11 @@ public class Node {
         }
     }  
 
+    /**
+     * Provide a human readable interpretation of Last_Execution_Status
+     * @param in
+     * @return
+     */
     protected String lookupStatus(String in) {
         // Underflow: Input Buffer is empty, Overflow: Output Buffer is full, Yield: Ready to run, RUN: Running
         switch (in) {
@@ -186,6 +195,41 @@ public class Node {
         }
     }
 
+    /**
+     * Returns the operation description (and the operation as a tooltip)
+     * includes opening the <td> but not closing it
+     * @param in
+     * @return
+     */
+    protected String lookupOperation(String in) {
+        String planElement = null;
+
+        if (in.startsWith("AspenCalcRel",0)) {
+            planElement = "Projection/Filter";
+        } else if (in.startsWith("AspenWindowRel",0)) {
+            planElement = "Windowed Aggregation";
+        } else if (in.startsWith("AspenSortRel",0)) {
+            planElement = "T-Sort";
+        } else if (in.startsWith("AspenStreamingAggregateRel",0)) {
+            planElement = "GROUP BY";
+        } else if (in.startsWith("AspenStreamTableJoinRel",0)) {
+            planElement = "Stream/Table Join";
+        } else if (in.startsWith("FarragoJavaUdxRel",0)) {
+            // TODO - distinguish terminal UDX which may be sink foreign stream
+            planElement = "UDX";
+        } else if (in.startsWith("AnonymousJavaUdxRel",0)) {
+            planElement= "Source Foreign Stream";
+        } 
+        
+        if (planElement == null) {
+            // TODO get a complete list of operation names
+            return "<td colspan=\"2\">" + BOLD + in + UNBOLD;
+        } else {
+            return "<td colspan=\"2\" href=\"bogus\" tooltip=\"" +in +"\">" + BOLD + planElement + UNBOLD;
+        }
+
+    }
+
     // TODO - put bytes into human readable form (as for df -h)
     // TODO - put time, rows, bytes into a table
 
@@ -194,7 +238,7 @@ public class Node {
                 "[penwidth=3.0,style=\"bold,filled\",shape=rect,fillcolor=" +
                 nodeColor + ", label=< <table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"0\"" +
                 ((queryPlan.length() == 0) ? "" : " tooltip=" + QUOTE + StringEscapeUtils.escapeHtml(queryPlan) + QUOTE + " href="+QUOTE+"bogus"+QUOTE) + ">" + 
-                STARTROW+ nodeId + ENDCELL + lookupStatus(lastExecResult) + ENDCELL + "<td colspan=\"2\"><B>" + nameInQueryPlan + "</B>" + ENDROW +
+                STARTROW+ nodeId + ENDCELL  + lookupOperation(nameInQueryPlan) + ENDCELL + lookupStatus(lastExecResult) + ENDROW +
                 STARTROW+ "&nbsp;" + NEWCELL + "Time" + NEWCELL + "Rows" + NEWCELL + "Bytes" + ENDROW +
                 STARTROW+ "Input" + NEWCELL + inputRowtimeClock  + NEWCELL +  ( (netInputRows == 0) ? QUERY : Utils.formatLong(netInputRows) ) + NEWCELL + Utils.humanReadableByteCountSI(netInputBytes,"B") + ENDROW +
                 STARTROW+ "Output" + NEWCELL + outputRowtimeClock + NEWCELL + ( (netOutputRows == 0) ? QUERY : Utils.formatLong(netOutputRows) ) + NEWCELL + Utils.humanReadableByteCountSI(netOutputBytes,"B") +  ENDROW +
