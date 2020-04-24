@@ -176,12 +176,12 @@ public class Graph {
             }
         }
 
-        return "<tr><td colspan=\"" + tabCols + "\"" +
+        return "<tr><td align=\"left\" colspan=\"" + tabCols + "\"" +
                 ((startSql == null) 
                         ? ">" + SQLFONT + escapedSql
-                        : (" href=\"bogus\" tooltip=\""+escapedSql+"\">" + SQLFONT + StringEscapeUtils.escapeHtml(startSql))
+                        : (" href=\"bogus\" tooltip=\""+escapedSql+"\">" + SQLFONT + StringEscapeUtils.escapeHtml(startSql)+ " ...")
                 ) + 
-                ((fromSql == null) ? "" : ("<br/>"+ fromSql)) +
+                ((fromSql == null) ? "" : ("<br/>"+ StringEscapeUtils.escapeHtml((fromSql.length() > displaySize) ? (fromSql.substring(0, displaySize) + " ...") : fromSql ))) +
                 ENDFONT + ENDROW;
 
     }
