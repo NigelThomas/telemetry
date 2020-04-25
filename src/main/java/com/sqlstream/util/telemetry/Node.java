@@ -32,6 +32,7 @@ public class Node {
     String nameInQueryPlan;
     String queryPlan;
     String iNodes;
+    int numInputNodes;
     String[] inputNodes;
 
     String nodeColor;
@@ -78,6 +79,7 @@ public class Node {
                     , String nameInQueryPlan
                     , String queryPlan
                     , String inputNodes
+                    , int numInputNodes
                     ){
         this.graphId = graphId;
         this.nodeId = nodeId;
@@ -91,8 +93,9 @@ public class Node {
         this.nameInQueryPlan = nameInQueryPlan;
         this.queryPlan = queryPlan;
         this.iNodes = inputNodes;
+        this.numInputNodes = numInputNodes;
 
-        if (inputNodes == null || inputNodes.length() == 0) {
+        if (numInputNodes == 0 || inputNodes == null || inputNodes.length() == 0) {
             this.inputNodes = new String[]{};
         } else {
             this.inputNodes = inputNodes.split(SPACE);

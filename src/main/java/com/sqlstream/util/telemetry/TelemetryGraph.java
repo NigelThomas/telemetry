@@ -151,7 +151,9 @@ public class TelemetryGraph
                     ",CAST(WHEN_STARTED AS VARCHAR(32)) AS WHEN_STARTED"+
                     ",CAST(WHEN_FINISHED AS VARCHAR(32)) AS WHEN_FINISHED"+
                     ",CAST(WHEN_CLOSED AS VARCHAR(32)) AS WHEN_CLOSED"+
-            " from TABLE(SYS_BOOT.MGMT.getStreamGraphInfo(0,0))";
+            " from TABLE(SYS_BOOT.MGMT.getStreamGraphInfo(0,0))" +
+            " WHERE GRAPH_ID < 100000"
+            ;
 
             PreparedStatement graphPs = connection.prepareStatement(graphSql);
 
@@ -162,9 +164,10 @@ public class TelemetryGraph
                     ", NET_OUTPUT_ROWS, NET_OUTPUT_BYTES" +
                     ", CAST(COALESCE(INPUT_ROWTIME_CLOCK, CURRENT_TIMESTAMP) AS VARCHAR(32)) AS INPUT_ROWTIME_CLOCK" +
                     ", CAST(COALESCE(OUTPUT_ROWTIME_CLOCK, CURRENT_TIMESTAMP) AS VARCHAR(32)) AS OUTPUT_ROWTIME_CLOCK" + 
-                    ", NAME_IN_QUERY_PLAN, QUERY_PLAN, INPUT_NODES" +
+                    ", NAME_IN_QUERY_PLAN, QUERY_PLAN, INPUT_NODES, NUM_INPUTS" +
             " from TABLE(SYS_BOOT.MGMT.getStreamOperatorInfo(0,0))" +
-            " WHERE (NAME_IN_QUERY_PLAN NOT LIKE 'StreamSinkPortRel%' AND NAME_IN_QUERY_PLAN NOT LIKE 'NetworkRel%')";
+            " WHERE (NAME_IN_QUERY_PLAN NOT LIKE 'StreamSinkPortRel%' AND NAME_IN_QUERY_PLAN NOT LIKE 'NetworkRel%')" +
+            " AND GRAPH_ID < 100000";
             
             PreparedStatement operatorPs = connection.prepareStatement(operatorSql);
 
@@ -269,12 +272,13 @@ public class TelemetryGraph
                     String nameInQueryPlan = operRs.getString(col++);
                     String queryPlan = operRs.getString(col++);
                     String inputNodes = operRs.getString(col++);
+                    int numInputNodes = operRs.getInt(col++);
 
                     Node node = new Node(graphId, nodeId, lastExecResult
                                                     , netInputRows, netInputBytes
                                                     , netOutputRows, netOutputBytes
                                                     , inputRowtimeClock, outputRowtimeClock
-                                                    , nameInQueryPlan, queryPlan, inputNodes
+                                                    , nameInQueryPlan, queryPlan, inputNodes, numInputNodes
                                                     );
                 }
 
