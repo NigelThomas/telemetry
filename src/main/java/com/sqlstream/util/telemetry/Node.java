@@ -256,9 +256,11 @@ public class Node {
         } else if (in.startsWith("AspenSortRel",0)) {
             planElement = "T-Sort";
         } else if (in.startsWith("AspenStreamingAggregateRel",0)) {
-            planElement = "GROUP BY";
+            planElement = "Streaming GROUP BY";
         } else if (in.startsWith("AspenStreamTableJoinRel",0)) {
             planElement = "Stream/Table Join";
+        } else if (in.startsWith("LhxJoinRel",0)) {
+            planElement = "Left Join";
         } else if (in.startsWith("FarragoJavaUdxRel",0)) {
             // TODO - distinguish terminal UDX which may be sink foreign stream
             planElement = "UDX";
