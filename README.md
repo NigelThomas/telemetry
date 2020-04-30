@@ -34,4 +34,15 @@ do
     cat $f | [ docker container run --rm -i nshine/dot ] dot -Tsvg > $f.svg ; done 
 done
 ```
+For help:
+```
+$ ./telegraph.sh --help
 
+telegraph.sh [OPTIONS...] ARGUMENTS...
+ --help                             : print help message and quit (default: false)
+ -f (--frequency) frequency         : repeat every <frequency> seconds (default: 10)
+ -g (--graph-info-level) info-level : include some graph info at <info-level> (0-4: higher level = more data) for each
+                                      stream graph on the first node for that graph (default 0) (default: 0)
+ -p (--show-proxy-nodes)            : include certain proxy nodes that are normally hidden (default: false)
+ -r (--repeat-count) repeat-count   : generate <repeat-count> outputs (default: 3)
+```

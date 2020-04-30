@@ -56,10 +56,12 @@ public class TelemetryGraph
 
     @Option(
             name = "-g",
-            aliases = {"--show-graph-detail"},
-            usage = "include detailed info for each stream graph on the first node for that graph",
+            aliases = {"--graph-info-level"},
+            usage = "include some graph info at <info-level> (0-4: higher level = more data) for each stream graph on the first node for that graph (default 0)",
+            metaVar = "info-level",
             required = false)
-    static private boolean showGraphDetail = false;
+    static private int graphInfoLevel = 0;
+
 
     @Option(
             name = "-p",
@@ -120,6 +122,7 @@ public class TelemetryGraph
 
         sleepTimeMillis = sleepPeriod * 1000;
 
+
     }
 
     public static void main(String[] args)  {
@@ -159,12 +162,14 @@ public class TelemetryGraph
 
 
             String operatorSql = "select CAST(GRAPH_ID AS VARCHAR(8)) AS GRAPH_ID, NODE_ID" +
-                    ", LAST_EXEC_RESULT" +
+                    ", LAST_EXEC_RESULT, SCHED_STATE" +
                     ", NET_INPUT_ROWS, NET_INPUT_BYTES" +
                     ", NET_OUTPUT_ROWS, NET_OUTPUT_BYTES" +
                     ", CAST(COALESCE(INPUT_ROWTIME_CLOCK, CURRENT_TIMESTAMP) AS VARCHAR(32)) AS INPUT_ROWTIME_CLOCK" +
                     ", CAST(COALESCE(OUTPUT_ROWTIME_CLOCK, CURRENT_TIMESTAMP) AS VARCHAR(32)) AS OUTPUT_ROWTIME_CLOCK" + 
-                    ", NAME_IN_QUERY_PLAN, QUERY_PLAN, INPUT_NODES, NUM_INPUTS" +
+                    ", NAME_IN_QUERY_PLAN, QUERY_PLAN" +
+                    ", INPUT_NODES, NUM_INPUTS" +
+                    ", OUTPUT_NODES, NUM_OUTPUTS" +
             " from TABLE(SYS_BOOT.MGMT.getStreamOperatorInfo(0,0))" +
             " WHERE (NAME_IN_QUERY_PLAN NOT LIKE 'StreamSinkPortRel%' AND NAME_IN_QUERY_PLAN NOT LIKE 'NetworkRel%')" +
             " AND GRAPH_ID < 100000";
@@ -262,6 +267,7 @@ public class TelemetryGraph
                     String graphId = operRs.getString(col++);
                     String nodeId = operRs.getString(col++);
                     String lastExecResult = operRs.getString(col++);
+                    String schedState = operRs.getString(col++);
                     long netInputRows = operRs.getLong(col++);
                     long netInputBytes = operRs.getLong(col++);
                     long netOutputRows = operRs.getLong(col++);
@@ -273,12 +279,16 @@ public class TelemetryGraph
                     String queryPlan = operRs.getString(col++);
                     String inputNodes = operRs.getString(col++);
                     int numInputNodes = operRs.getInt(col++);
+                    String outputNodes = operRs.getString(col++);
+                    int numOutputNodes = operRs.getInt(col++);
 
-                    Node node = new Node(graphId, nodeId, lastExecResult
+                    Node node = new Node(graphId, nodeId, lastExecResult, schedState
                                                     , netInputRows, netInputBytes
                                                     , netOutputRows, netOutputBytes
                                                     , inputRowtimeClock, outputRowtimeClock
-                                                    , nameInQueryPlan, queryPlan, inputNodes, numInputNodes
+                                                    , nameInQueryPlan, queryPlan
+                                                    , inputNodes, numInputNodes
+                                                    , outputNodes, numOutputNodes
                                                     );
                 }
 
@@ -345,7 +355,7 @@ public class TelemetryGraph
 
             // nodes
             for (Node node : Node.nodeHashMap.values()) {
-                fw.write(node.getDotString(showProxyDetail, showGraphDetail));
+                fw.write(node.getDotString(showProxyDetail, graphInfoLevel));
             }
 
             fw.write("}");

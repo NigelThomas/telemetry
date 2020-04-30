@@ -199,26 +199,37 @@ public class Graph {
         return nameInQueryPlan.equals(sourceSql) ? "" : displaySQL(sourceSql, 4, 120);
     }
 
-    protected String getDotTable() {
-        // exclude C and Z states
+    protected String getDotTable(int graphInfoLevel) {
+        StringBuffer result = new StringBuffer();
 
-        if (deleted) 
-            return "";
-        else
-            return  
-                STARTROW+ "Graph ID" + NEWCELL + "State"  + NEWCELL + "Session Id" + NEWCELL + "Statement Id" + ENDROW +
-                STARTROW+ graphId + NEWCELL  + lookupSchedState(schedState) + NEWCELL + sessionId + NEWCELL +  + statementId  + ENDROW +
-                STARTROW+ "Net Mem" + NEWCELL + "Max Mem"  + NEWCELL + "Open Time"  + NEWCELL + "Exec time"  +  ENDROW +
-                STARTROW+ Utils.humanReadableByteCountSI(netMemoryBytes,"B")+ NEWCELL  + Utils.humanReadableByteCountSI(maxMemoryBytes,"B") + NEWCELL  + totalOpeningTime + NEWCELL  + totalExecutionTime +  ENDROW +
-                STARTROW+ "When Opened" + NEWCELL + "When Started"  + NEWCELL + "When Closed"  + NEWCELL + "When Finished"  +  ENDROW +
-                STARTROW+ whenOpened + NEWCELL  + whenStarted + NEWCELL  + whenClosed + NEWCELL  + whenFinished +  ENDROW +
-                STARTROW+ "Rows" + NEWCELL + "Row Rate" + NEWCELL + "Bytes" + NEWCELL + "Byte Rate" + ENDROW +
-                STARTROW+ "Input:"  +( (netInputRows == 0) ? QUERY : Utils.formatLong(netInputRows)) + NEWCELL + Utils.formatDouble(netInputRowRate) + NEWCELL + Utils.humanReadableByteCountSI(netInputBytes,"B") + NEWCELL + Utils.formatDouble(netInputRate) + ENDROW +
-                STARTROW+ "Output"  + ( (netOutputRows == 0) ? QUERY : Utils.formatLong(netOutputRows)) + NEWCELL + Utils.formatDouble(netOutputRowRate) + NEWCELL + Utils.humanReadableByteCountSI(netOutputBytes,"B") + NEWCELL + Utils.formatDouble(netOutputRate) + ENDROW
-                ;
+        if (graphInfoLevel > 0) {
+                result.append(STARTROW+ "Graph ID" + NEWCELL + "State"  + NEWCELL + "Session Id" + NEWCELL + "Statement Id" + ENDROW +
+                              STARTROW+ graphId + NEWCELL  + lookupSchedState(schedState) + NEWCELL + sessionId + NEWCELL +  + statementId  + ENDROW
+                );
+
+                if (graphInfoLevel > 1) {
+                    result.append(STARTROW+ "Net Mem" + NEWCELL + "Max Mem"  + NEWCELL + "Open Time"  + NEWCELL + "Exec time"  +  ENDROW +
+                                  STARTROW+ Utils.humanReadableByteCountSI(netMemoryBytes,"B")+ NEWCELL  + Utils.humanReadableByteCountSI(maxMemoryBytes,"B") + NEWCELL  + totalOpeningTime + NEWCELL  + totalExecutionTime +  ENDROW
+                    );
+
+                    if (graphInfoLevel > 2) {
+                        result.append(STARTROW+ "When Opened" + NEWCELL + "When Started"  + NEWCELL + "When Closed"  + NEWCELL + "When Finished"  +  ENDROW +
+                                    STARTROW+ whenOpened + NEWCELL  + whenStarted + NEWCELL  + whenClosed + NEWCELL  + whenFinished +  ENDROW
+                                 );
+                        if (graphInfoLevel > 3) {
+                            result.append(STARTROW+ "Rows" + NEWCELL + "Row Rate" + NEWCELL + "Bytes" + NEWCELL + "Byte Rate" + ENDROW +
+                                        STARTROW+ "Input:"  +( (netInputRows == 0) ? QUERY : Utils.formatLong(netInputRows)) + NEWCELL + Utils.formatDouble(netInputRowRate) + NEWCELL + Utils.humanReadableByteCountSI(netInputBytes,"B") + NEWCELL + Utils.formatDouble(netInputRate) + ENDROW +
+                                        STARTROW+ "Output"  + ( (netOutputRows == 0) ? QUERY : Utils.formatLong(netOutputRows)) + NEWCELL + Utils.formatDouble(netOutputRowRate) + NEWCELL + Utils.humanReadableByteCountSI(netOutputBytes,"B") + NEWCELL + Utils.formatDouble(netOutputRate) + ENDROW
+                                        );
+                    }
+                }
+            }
+        }
+
+        return result.toString();
     }
  
-    protected String getDotString() {
+    protected String getDotString(int graphInfoLevel) {
         // exclude C and Z states
 
         if (deleted) 
@@ -229,7 +240,7 @@ public class Graph {
                 ", label=< <table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"0\"" +
                 ((sourceSql.length() == 0) ? "" : " tooltip=" + QUOTE + StringEscapeUtils.escapeHtml(sourceSql) + QUOTE + " href="+QUOTE+"bogus"+QUOTE) + 
                 ">" + 
-                getDotTable() +
+                getDotTable(graphInfoLevel) +
                 "</table> >];\n" ;
             
     }

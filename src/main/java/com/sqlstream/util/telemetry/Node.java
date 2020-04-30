@@ -23,6 +23,7 @@ public class Node {
     String graphId;
     String nodeId;
     String lastExecResult;
+    String schedState;
     long netInputRows;
     long netInputBytes;
     long netOutputRows;
@@ -31,45 +32,53 @@ public class Node {
     String outputRowtimeClock;
     String nameInQueryPlan;
     String queryPlan;
-    String iNodes;
     int numInputNodes;
-    String[] inputNodes;
+
+    String inputNodes;      // flat string representation
+    String[] inputNodeIds;  // divided into array
+    Set<Node> inputNodeSet = new HashSet<>();
+
+    int numOutputNodes;
+    String outputNodes;
+    String[] outputNodeIds;
+    Set<Node> outputNodeSet = new HashSet<>();
 
     String nodeColor;
 
-    Set<Node> outputNodes = new HashSet<>();
 
 
     boolean deleted = false;
 
-   // constants for dot
-   static final String SEMICOLON = ";";
-   static final String STARTROW = "<tr><td>";
-   static final String STARTCELL = "<td>";
-   static final String ENDCELL = "</td>";
-   static final String NEWCELL = ENDCELL+STARTCELL;
-   static final String ENDROW = "</td></tr>";
-   static final String QUOTE = "\"";
-   static final String SPACE = " ";
-   static final String NEWLINE = "\n";
-   static final String RIGHTARROW = " -> ";
-   static final String QUERY = "?";
-   static final String INDENT = "    ";
+    // constants for dot
+    static final String SEMICOLON = ";";
+    static final String STARTROW = "<tr><td>";
+    static final String STARTCELL = "<td>";
+    static final String ENDCELL = "</td>";
+    static final String NEWCELL = ENDCELL+STARTCELL;
+    static final String ENDROW = "</td></tr>";
+    static final String QUOTE = "\"";
+    static final String SPACE = " ";
+    static final String NEWLINE = "\n";
+    static final String RIGHTARROW = " -> ";
+    static final String QUERY = "?";
+    static final String INDENT = "    ";
+    static final String PIPE = "|";
 
-   // cell colors
-   static final String GREENCELL = "<td bgcolor=\"green\">";
-   static final String REDCELL = "<td bgcolor=\"red\">";
-   static final String YELLOWCELL = "<td bgcolor=\"yellow\">";
-   static final String BLUECELL = "<td bgcolor=\"blue\">";
+    // cell colors
+    static final String GREENCOLOR = "bgcolor=\"green\" ";
+    static final String REDCOLOR = "bgcolor=\"red\" ";
+    static final String YELLOWCOLOR = "bgcolor=\"yellow\" ";
+    static final String BLUECOLOR = " bgcolor=\"blue\" ";
 
-   static final String BOLD = "<b>";
-   static final String UNBOLD = "</b>";
+    static final String BOLD = "<b>";
+    static final String UNBOLD = "</b>";
 
    // construct with raw data
     protected Node
                     ( String graphId
                     , String nodeId 
                     , String lastExecResult
+                    , String schedState
                     , long netInputRows
                     , long netInputBytes
                     , long netOutputRows
@@ -80,10 +89,13 @@ public class Node {
                     , String queryPlan
                     , String inputNodes
                     , int numInputNodes
+                    , String outputNodes
+                    , int numOutputNodes
                     ){
         this.graphId = graphId;
         this.nodeId = nodeId;
         this.lastExecResult = lastExecResult;
+        this.schedState = schedState;
         this.netInputRows = netInputRows;
         this.netInputBytes = netInputBytes;
         this.netOutputRows = netOutputRows;
@@ -92,38 +104,24 @@ public class Node {
         this.outputRowtimeClock = outputRowtimeClock; 
         this.nameInQueryPlan = nameInQueryPlan;
         this.queryPlan = queryPlan;
-        this.iNodes = inputNodes;
         this.numInputNodes = numInputNodes;
+        this.inputNodes = inputNodes;
+        this.numOutputNodes = numOutputNodes;
+        this.outputNodes = outputNodes;
 
         if (numInputNodes == 0 || inputNodes == null || inputNodes.length() == 0) {
-            this.inputNodes = new String[]{};
+            this.inputNodeIds = new String[]{};
         } else {
-            this.inputNodes = inputNodes.split(SPACE);
+            this.inputNodeIds = inputNodes.split(SPACE);
         }
 
-        /*
-        switch (lastExecResult) {
-            case "UND":
-                nodeColor = "green";
-                break;
-            case "OVR":
-                nodeColor = "red";
-                break;
-
-            case "YLD":
-                nodeColor = "yellow";
-                break;
-
-            case "EOS":
-                // these are excluded in the query
-                // TODO - allow inclusion
-                nodeColor = "blue";
-                break;
-
-            default:
-                nodeColor = "white";
+        if (numOutputNodes == 0 || outputNodeIds == null || outputNodes.length() == 0) {
+            this.outputNodeIds = new String[]{};
+        } else {
+            this.outputNodeIds = outputNodes.split(SPACE);
         }
-        */ 
+
+
         nodeColor = "white";
 
         if (nameInQueryPlan.matches(".*\\.pro") ||
@@ -148,29 +146,41 @@ public class Node {
 
     // can only be executed once all nodes are loaded
     protected void addOutputNode(Node outputNode) {
-        outputNodes.add(outputNode);
+        outputNodeSet.add(outputNode);
     }
     
     // take all the input nodes in this node and make the corresponding output links from there to here
     protected void linkOutputNodes() {
         
-        if (tracer.isLoggable(Level.FINER)) tracer.finer("linkOutputNode: node="+nodeId+", iNodes='"+iNodes+"', list="+Arrays.toString(inputNodes)+", listlen="+inputNodes.length);
+        if (tracer.isLoggable(Level.FINER)) tracer.finer("linkOutputNode: node="+nodeId+", inputNodes='"+inputNodes+"', list="+Arrays.toString(inputNodeIds)+", listlen="+inputNodeIds.length);
         
-        for (String inputNode : inputNodes) {
+        for (String inputNodeId : inputNodeIds) {
             try {
-                nodeHashMap.get(inputNode).addOutputNode(this);
+                nodeHashMap.get(inputNodeId).addOutputNode(this);
             } catch (NullPointerException npe) {
-                tracer.log(Level.WARNING, "No node '"+ inputNode+"'");
+                tracer.log(Level.WARNING, "No input node '"+ inputNodeId+"' ref from '"+nodeId+"'");
+                tracer.log(Level.INFO,this.toString());
+            }
+        }
+
+        //  structural checks against output nodes
+        for (String outputNodeId : outputNodeIds) {
+            try {
+                Node onode = nodeHashMap.get(outputNodeId);
+                if (onode == null) throw new NullPointerException("output node "+outputNodeId);
+            } catch (NullPointerException npe) {
+                tracer.log(Level.WARNING, "No output node '"+ outputNodeId+"' ref from '"+nodeId+"'");
+                tracer.log(Level.INFO,this.toString());
             }
         }
     }
 
-    protected String getDotString(boolean showDeleted, boolean showGraphDetail) {
+    protected String getDotString(boolean showDeleted, int graphInfoLevel) {
         if (deleted && !showDeleted) {
             /* discard deleted elements */
             return "/* "+nodeId+ " */" + NEWLINE;
         } else {
-            return getDotNode(showGraphDetail) + getDotEdges();
+            return getDotNode(graphInfoLevel) + getDotEdges();
         }
     }  
 
@@ -183,18 +193,39 @@ public class Node {
         // Underflow: Input Buffer is empty, Overflow: Output Buffer is full, Yield: Ready to run, RUN: Running
         switch (in) {
             case "UND":
-                return GREENCELL+"Input buffer is empty";
+                return "Input buffer is empty";
             case "OVF":
-                return REDCELL+"Overflow - output buffer is full";
+                return "Overflow - output buffer is full";
             case "YLD":
-                return YELLOWCELL+"Ready to run";
+                return "Ready to run";
             case "RUN":
-                return GREENCELL+"Running";
+                return "Running";
             case "EOS":
-                return BLUECELL+"End of Stream";
+                return "End of Stream";
 
             default:
-                return YELLOWCELL+in;
+                return in;
+        }
+    }
+
+        /**
+     * Return the background color based on status
+     * @param status last_execution_status
+     * @return
+     */
+    protected String statusColor(String status) {
+        switch (status) {
+            case "UND":
+                return GREENCOLOR;
+            case "OVF":
+                return REDCOLOR;
+            case "RUN":
+                return GREENCOLOR;
+            case "EOS":
+                return BLUECOLOR;
+            case "YLD":
+            default:
+                return YELLOWCOLOR;
         }
     }
 
@@ -220,6 +251,11 @@ public class Node {
         } else if (in.startsWith("FarragoJavaUdxRel",0)) {
             // TODO - distinguish terminal UDX which may be sink foreign stream
             planElement = "UDX";
+            Set<Node> children = new HashSet<Node>();
+            children = getChildren(children);
+            if (children.isEmpty()) {
+                planElement = "Sink Foreign Stream";
+            }
         } else if (in.startsWith("AnonymousJavaUdxRel",0)) {
             planElement= "Source Foreign Stream";
         } 
@@ -238,36 +274,51 @@ public class Node {
      * @return
      */
     String nodeCell() {
-        return "<td tooltip=\""+ iNodes+"\" href=\"bogus\">" + nodeId + ENDCELL;
+        return "<td tooltip=\""+ inputNodes+"\" href=\"bogus\">" + nodeId + ENDCELL;
     }
 
     // TODO - put bytes into human readable form (as for df -h)
     // TODO - put time, rows, bytes into a table
 
-    protected String getDotNode(boolean showGraphDetail) {
+    protected String getDotNode(int graphInfoLevel) {
         Graph graph = null;
         
         // get graphId if this is the first node in a graph
         // it is the first node if there are no input nodes, or if all input nodes are from other graphs
-        // TODO do we need to maintain the iNodes (and/or inputNodes) as we delete nodes from the graph?
+        // TODO do we need to maintain the inputNodes (and/or inputNodes) as we delete nodes from the graph?
 
-        if ((iNodes.length() == 0 || !(" "+iNodes).matches(".*"+graphId+"\\..*"))) {
+        if ((inputNodes.length() == 0 || !(" "+inputNodes).matches(".*"+graphId+"\\..*"))) {
             graph = Graph.getGraph(graphId);
 
         }
 
+        nodeColor = "white";
+        boolean isStream = nameInQueryPlan.startsWith("[") || nameInQueryPlan.startsWith("AnonymousJavaUdxRel");
+        if (nameInQueryPlan.startsWith("FarragoJavaUdxRel",0)) {
+            Set<Node> children = new HashSet<Node>();
+            children = getChildren(children);
+            if (children.isEmpty()) {
+                isStream = true;
+            }
+        }
+
+        if (isStream) {
+            nodeColor = "LightBlue";
+        }
+
+
         return INDENT + QUOTE + nodeId + QUOTE + SPACE + 
                 "[penwidth=3.0,style=\"bold,filled\",shape=rect,fillcolor=" +
-                nodeColor + ", label=< <table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"0\"" +
+                nodeColor + ", label=< <table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"8\"" +
                 ((queryPlan.length() == 0) ? "" : " tooltip=" + QUOTE + StringEscapeUtils.escapeHtml(queryPlan) + QUOTE + " href="+QUOTE+"bogus"+QUOTE) + ">" + 
-                "<tr>" + nodeCell() + lookupOperation(nameInQueryPlan) + ENDCELL + lookupStatus(lastExecResult) + ENDROW +
+                "<tr>" + nodeCell() + lookupOperation(nameInQueryPlan) + ENDCELL + "<td " + statusColor(lastExecResult) + ">" + lookupStatus(lastExecResult) + " " + schedState + ENDROW +
                 // if first node in graph, include SQL if helpful
                 ((graph != null) ? graph.displaySQL(nameInQueryPlan) : "" ) +
                 STARTROW+ "&nbsp;" + NEWCELL + "Rowtime" + NEWCELL + "Rows" + NEWCELL + "Bytes" + ENDROW +
                 STARTROW+ "Input: " + NEWCELL + inputRowtimeClock  + NEWCELL +  ( (netInputRows == 0) ? QUERY : Utils.formatLong(netInputRows) ) + NEWCELL + Utils.humanReadableByteCountSI(netInputBytes,"B") + ENDROW +
                 STARTROW+ "Output: " + NEWCELL + outputRowtimeClock + NEWCELL + ( (netOutputRows == 0) ? QUERY : Utils.formatLong(netOutputRows) ) + NEWCELL + Utils.humanReadableByteCountSI(netOutputBytes,"B") +  ENDROW +
                 // if first node in graph, include remaining graph details            
-                ((graph != null && showGraphDetail) ? graph.getDotTable() : "") +
+                ((graph != null) ? graph.getDotTable(graphInfoLevel) : "") +
                 "</table> >];\n" ;
             
     }
@@ -277,7 +328,7 @@ public class Node {
 
         
         // traverse outputNodes as they will have been fixed to remove deleted nodes
-        for (Node childNode : outputNodes) {
+        for (Node childNode : outputNodeSet) {
             result.append(INDENT+INDENT+QUOTE + nodeId + QUOTE + RIGHTARROW + QUOTE + childNode.getNodeId() + QUOTE + SEMICOLON + NEWLINE);
         }
 
@@ -292,7 +343,7 @@ public class Node {
         
     protected Set<Node> getChildren(Set<Node> inputSet) {
 
-        for (Node childNode : outputNodes) {
+        for (Node childNode : outputNodeSet) {
             if (childNode.isDeleted()) {
                 // descend looking for more
                 inputSet.addAll(childNode.getChildren(inputSet));
@@ -313,7 +364,7 @@ public class Node {
             Set<Node> childNodes = new HashSet<>();
             childNodes = getChildren(childNodes);
             
-            for (String nodeId : inputNodes) {
+            for (String nodeId : inputNodeIds) {
                 if (tracer.isLoggable(Level.FINEST)) tracer.finest("replacing children for "+nodeId);
                 
                 Node parentNode = nodeHashMap.get(nodeId);
@@ -323,7 +374,9 @@ public class Node {
         } else {
             // mark the corresponding graph as undeleted
             // NOTE: wasteful because every node in the graph so marks it
-            Graph.graphHashMap.get(graphId).setUndeleted();
+            if (Graph.graphHashMap.get(graphId) != null) {
+                Graph.graphHashMap.get(graphId).setUndeleted();
+            }
         }
     }
 
@@ -336,13 +389,19 @@ public class Node {
     protected void replaceChildren(Node deletedChild, Set<Node> childNodes) {
         if (!deleted) {
             if (tracer.isLoggable(Level.FINE)) tracer.fine("Node:"+nodeId+" - really replacing deleted "+deletedChild.getNodeId()+" with " + nodeSetToString(childNodes));
-            if (tracer.isLoggable(Level.FINEST)) tracer.finest("Set before: "+nodeSetToString(outputNodes));
+            if (tracer.isLoggable(Level.FINEST)) tracer.finest("Set before: "+nodeSetToString(outputNodeSet));
             
-            outputNodes.remove(deletedChild);
-            outputNodes.addAll(childNodes);
+            outputNodeSet.remove(deletedChild);
+            outputNodeSet.addAll(childNodes);
             
-            if (tracer.isLoggable(Level.FINEST)) tracer.finest("Set after: "+nodeSetToString(outputNodes));
+            if (tracer.isLoggable(Level.FINEST)) tracer.finest("Set after: "+nodeSetToString(outputNodeSet));
         }
+    }
+
+    @Override
+    public String toString() {
+        return "Node:"+nodeId+PIPE+"Graph:"+graphId+PIPE+
+            "schedState:"+schedState+PIPE+"lastExecResult:"+lastExecResult+PIPE+nameInQueryPlan;
     }
 
     /**
