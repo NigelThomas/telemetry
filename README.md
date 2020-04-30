@@ -45,4 +45,5 @@ telegraph.sh [OPTIONS...] ARGUMENTS...
                                       stream graph on the first node for that graph (default 0) (default: 0)
  -p (--show-proxy-nodes)            : include certain proxy nodes that are normally hidden (default: false)
  -r (--repeat-count) repeat-count   : generate <repeat-count> outputs (default: 3)
+ -z (--include-dead)                : include dead (zombie) graphs (default: false)
 ```

@@ -36,6 +36,13 @@ public class TelemetryGraph
     private boolean help = false;
 
     @Option(
+        name = "-z",
+        aliases = {"--include-dead"},
+        usage = "include dead (zombie) graphs",
+        required = false)
+    private boolean includeDeadGraphs = false;
+
+@Option(
             name = "-f",
             aliases = {"--frequency"},
             usage = "repeat every <frequency> seconds",
@@ -327,7 +334,7 @@ public class TelemetryGraph
 
         // link up output nodes   
         for (Node node : Node.nodeHashMap.values()) {
-            node.linkOutputNodes();
+            node.linkOutputNodes(includeDeadGraphs);
         }
 
         // now clean out all marked deleted nodes

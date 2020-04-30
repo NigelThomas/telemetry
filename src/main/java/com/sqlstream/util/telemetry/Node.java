@@ -45,7 +45,7 @@ public class Node {
 
     String nodeColor;
 
-
+    Graph graph = null;
 
     boolean deleted = false;
 
@@ -150,27 +150,37 @@ public class Node {
     }
     
     // take all the input nodes in this node and make the corresponding output links from there to here
-    protected void linkOutputNodes() {
+    protected void linkOutputNodes(boolean includeDeadGraphs) {
         
         if (tracer.isLoggable(Level.FINER)) tracer.finer("linkOutputNode: node="+nodeId+", inputNodes='"+inputNodes+"', list="+Arrays.toString(inputNodeIds)+", listlen="+inputNodeIds.length);
         
-        for (String inputNodeId : inputNodeIds) {
-            try {
-                nodeHashMap.get(inputNodeId).addOutputNode(this);
-            } catch (NullPointerException npe) {
-                tracer.log(Level.WARNING, "No input node '"+ inputNodeId+"' ref from '"+nodeId+"'");
-                tracer.log(Level.INFO,this.toString());
-            }
-        }
+        this.graph = Graph.getGraph(graphId);
+        if (graph == null) {
+            tracer.warning("Node "+nodeId+" cannot find corresponding graph "+graphId);
+        } else if (!includeDeadGraphs && graph.getSchedState().equals("Z")) {
+            // don't show any nodes in a dead graph
+            this.deleted = true;
+        } else {
+            // remove unwanted proxy nodes from graph 
 
-        //  structural checks against output nodes
-        for (String outputNodeId : outputNodeIds) {
-            try {
-                Node onode = nodeHashMap.get(outputNodeId);
-                if (onode == null) throw new NullPointerException("output node "+outputNodeId);
-            } catch (NullPointerException npe) {
-                tracer.log(Level.WARNING, "No output node '"+ outputNodeId+"' ref from '"+nodeId+"'");
-                tracer.log(Level.INFO,this.toString());
+            for (String inputNodeId : inputNodeIds) {
+                try {
+                    nodeHashMap.get(inputNodeId).addOutputNode(this);
+                } catch (NullPointerException npe) {
+                    tracer.log(Level.WARNING, "No input node '"+ inputNodeId+"' ref from '"+nodeId+"'");
+                    tracer.log(Level.INFO,this.toString());
+                }
+            }
+
+            //  structural checks against output nodes
+            for (String outputNodeId : outputNodeIds) {
+                try {
+                    Node onode = nodeHashMap.get(outputNodeId);
+                    if (onode == null) throw new NullPointerException("output node "+outputNodeId);
+                } catch (NullPointerException npe) {
+                    tracer.log(Level.WARNING, "No output node '"+ outputNodeId+"' ref from '"+nodeId+"'");
+                    tracer.log(Level.INFO,this.toString());
+                }
             }
         }
     }

@@ -167,6 +167,7 @@ public class Graph {
 
         if (sql.length() > displaySize) {
             int fromIndex = sql.lastIndexOf("FROM ");
+            if (fromIndex < 0) fromIndex = sql.lastIndexOf("from ");
             if (fromIndex > 0) {
                 // we want to show the last FROM clause as a second line
                 fromSql = sql.substring(fromIndex, sql.length()-1);
@@ -188,6 +189,10 @@ public class Graph {
 
     protected String getSourceSql() {
         return sourceSql;
+    }
+
+    protected String getSchedState() {
+        return schedState;
     }
 
     /**
