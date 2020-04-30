@@ -22,6 +22,7 @@ public class Graph {
     String graphId;
     int statementId;
     int sessionId;
+    String sessionName;
     String sourceSql;
     String schedState;
     String closeMode;
@@ -91,6 +92,7 @@ public class Graph {
         ( String graphId
         , int statementId
         , int sessionId
+        , String sessionName
         , String sourceSql
         , String schedState
         , String closeMode
@@ -120,6 +122,7 @@ public class Graph {
             this.graphId = graphId;
             this.statementId = statementId;
             this.sessionId = sessionId;
+            this.sessionName = sessionName;
             this.sourceSql = sourceSql;
             this.schedState = schedState;
             this.closeMode = closeMode;
@@ -204,8 +207,18 @@ public class Graph {
         return nameInQueryPlan.equals(sourceSql) ? "" : displaySQL(sourceSql, 4, 120);
     }
 
-    protected String getDotTable(int graphInfoLevel) {
+    protected String displaySessionName(int tabCols) {
+        return (sessionName == null || sessionName.length() == 0) ? "" : 
+            (STARTROW + "Session Name: " + "</td><td align=\"left\" colspan=\"" + (tabCols-1) + "\">" +
+              SQLFONT + StringEscapeUtils.escapeHtml(sessionName) + ENDFONT + ENDROW);
+
+    }
+
+    protected String getGraphDot(int graphInfoLevel, String nameInQueryPlan) {
         StringBuffer result = new StringBuffer();
+        
+        result.append(displaySQL(nameInQueryPlan));
+        result.append(displaySessionName(4));
 
         if (graphInfoLevel > 0) {
                 result.append(STARTROW+ "Graph ID" + NEWCELL + "State"  + NEWCELL + "Session Id" + NEWCELL + "Statement Id" + ENDROW +
@@ -234,21 +247,6 @@ public class Graph {
         return result.toString();
     }
  
-    protected String getDotString(int graphInfoLevel) {
-        // exclude C and Z states
-
-        if (deleted) 
-            return "";
-        else
-            return  INDENT + QUOTE + graphId + QUOTE + SPACE + 
-                "[penwidth=3.0,style=\"bold,filled\",shape=rect,fillcolor=white" +
-                ", label=< <table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"0\"" +
-                ((sourceSql.length() == 0) ? "" : " tooltip=" + QUOTE + StringEscapeUtils.escapeHtml(sourceSql) + QUOTE + " href="+QUOTE+"bogus"+QUOTE) + 
-                ">" + 
-                getDotTable(graphInfoLevel) +
-                "</table> >];\n" ;
-            
-    }
 
 }
 

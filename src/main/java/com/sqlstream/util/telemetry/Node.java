@@ -159,6 +159,7 @@ public class Node {
             tracer.warning("Node "+nodeId+" cannot find corresponding graph "+graphId);
         } else if (!includeDeadGraphs && graph.getSchedState().equals("Z")) {
             // don't show any nodes in a dead graph
+            tracer.finer("node "+nodeId+" excluded - dead graph");
             this.deleted = true;
         } else {
             // remove unwanted proxy nodes from graph 
@@ -322,13 +323,11 @@ public class Node {
                 nodeColor + ", label=< <table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"8\"" +
                 ((queryPlan.length() == 0) ? "" : " tooltip=" + QUOTE + StringEscapeUtils.escapeHtml(queryPlan) + QUOTE + " href="+QUOTE+"bogus"+QUOTE) + ">" + 
                 "<tr>" + nodeCell() + lookupOperation(nameInQueryPlan) + ENDCELL + "<td " + statusColor(lastExecResult) + ">" + lookupStatus(lastExecResult) + " " + schedState + ENDROW +
-                // if first node in graph, include SQL if helpful
-                ((graph != null) ? graph.displaySQL(nameInQueryPlan) : "" ) +
                 STARTROW+ "&nbsp;" + NEWCELL + "Rowtime" + NEWCELL + "Rows" + NEWCELL + "Bytes" + ENDROW +
                 STARTROW+ "Input: " + NEWCELL + inputRowtimeClock  + NEWCELL +  ( (netInputRows == 0) ? QUERY : Utils.formatLong(netInputRows) ) + NEWCELL + Utils.humanReadableByteCountSI(netInputBytes,"B") + ENDROW +
                 STARTROW+ "Output: " + NEWCELL + outputRowtimeClock + NEWCELL + ( (netOutputRows == 0) ? QUERY : Utils.formatLong(netOutputRows) ) + NEWCELL + Utils.humanReadableByteCountSI(netOutputBytes,"B") +  ENDROW +
                 // if first node in graph, include remaining graph details            
-                ((graph != null) ? graph.getDotTable(graphInfoLevel) : "") +
+                ((graph != null) ? graph.getGraphDot(graphInfoLevel, nameInQueryPlan) : "") +
                 "</table> >];\n" ;
             
     }

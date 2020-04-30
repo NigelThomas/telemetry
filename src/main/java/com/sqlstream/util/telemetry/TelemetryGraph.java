@@ -59,12 +59,12 @@ public class TelemetryGraph
             metaVar = "repeat-count",
             required = false)
 
-    static private int repeatCount = 3; 
+    static private int repeatCount = 1; 
 
     @Option(
             name = "-g",
             aliases = {"--graph-info-level"},
-            usage = "include some graph info at <info-level> (0-4: higher level = more data) for each stream graph on the first node for that graph (default 0)",
+            usage = "include some graph info at <info-level> (0-4: higher level = more data) for each stream graph on the first node for that graph",
             metaVar = "info-level",
             required = false)
     static private int graphInfoLevel = 0;
@@ -150,7 +150,8 @@ public class TelemetryGraph
             // do the time formatting / defaulting in SQL for convenience
 
 
-            String graphSql = "select CAST(GRAPH_ID AS VARCHAR(8)) AS GRAPH_ID, STATEMENT_ID, SESSION_ID, SOURCE_SQL" +
+            String graphSql = "select CAST(GRAPH_ID AS VARCHAR(8)) AS GRAPH_ID, STATEMENT_ID"+
+                    ", g.SESSION_ID, s.SESSION_NAME, SOURCE_SQL" +
                     ",SCHED_STATE,CLOSE_MODE,IS_GLOBAL_NEXUS,IS_AUTO_CLOSE"+
                     ",NUM_NODES,NUM_LIVE_NODES,NUM_DATA_BUFFERS"+
                     ",TOTAL_EXECUTION_TIME,TOTAL_OPENING_TIME,TOTAL_CLOSING_TIME" +
@@ -161,12 +162,14 @@ public class TelemetryGraph
                     ",CAST(WHEN_STARTED AS VARCHAR(32)) AS WHEN_STARTED"+
                     ",CAST(WHEN_FINISHED AS VARCHAR(32)) AS WHEN_FINISHED"+
                     ",CAST(WHEN_CLOSED AS VARCHAR(32)) AS WHEN_CLOSED"+
-            " from TABLE(SYS_BOOT.MGMT.getStreamGraphInfo(0,0))" +
-            " WHERE GRAPH_ID < 100000"
+            " from TABLE(SYS_BOOT.MGMT.getStreamGraphInfo(0,0)) g" +
+            " LEFT JOIN SYS_BOOT.MGMT.SESSIONS_VIEW s ON s.ID = g.SESSION_ID";
             ;
 
             PreparedStatement graphPs = connection.prepareStatement(graphSql);
 
+            // try to use same telemetry snapshot, else nodes and graphs may be inconsistent
+            // so we assume we can use a 2 second old snapshot (assume 2 < frequency)
 
             String operatorSql = "select CAST(GRAPH_ID AS VARCHAR(8)) AS GRAPH_ID, NODE_ID" +
                     ", LAST_EXEC_RESULT, SCHED_STATE" +
@@ -177,17 +180,16 @@ public class TelemetryGraph
                     ", NAME_IN_QUERY_PLAN, QUERY_PLAN" +
                     ", INPUT_NODES, NUM_INPUTS" +
                     ", OUTPUT_NODES, NUM_OUTPUTS" +
-            " from TABLE(SYS_BOOT.MGMT.getStreamOperatorInfo(0,0))" +
-            " WHERE (NAME_IN_QUERY_PLAN NOT LIKE 'StreamSinkPortRel%' AND NAME_IN_QUERY_PLAN NOT LIKE 'NetworkRel%')" +
-            " AND GRAPH_ID < 100000";
+            " from TABLE(SYS_BOOT.MGMT.getStreamOperatorInfo(0,2))" +
+            " WHERE (NAME_IN_QUERY_PLAN NOT LIKE 'StreamSinkPortRel%' AND NAME_IN_QUERY_PLAN NOT LIKE 'NetworkRel%')" ;
             
             PreparedStatement operatorPs = connection.prepareStatement(operatorSql);
 
 
             // Read N times from statement graph
-            for (int i=0; i <= repeatCount; i++) {
+            for (int i=1; i <= repeatCount; i++) {
                 
-                if (i > 0) {
+                if (i > 1) {
                     // wait a bit before re-running
                     tracer.info("Sleeping between iterations");           
                     try {
@@ -207,6 +209,7 @@ public class TelemetryGraph
                     String graphId = graphRs.getString(col++);
                     int statementId = graphRs.getInt(col++);
                     int sessionId = graphRs.getInt(col++);
+                    String sessionName = graphRs.getString(col++);
                     String sourceSql = graphRs.getString(col++);
                     String schedState = graphRs.getString(col++);
                     String closeMode = graphRs.getString(col++);
@@ -233,10 +236,13 @@ public class TelemetryGraph
                     String whenFinished = graphRs.getString(col++);
                     String whenClosed = graphRs.getString(col++);
 
+                    //tracer.info("Graph="+graphId+", sessionName="+sessionName);
+
                     Graph graph = new Graph
                         ( graphId 
                         , statementId
                         , sessionId 
+                        , sessionName
                         , sourceSql 
                         , schedState 
                         , closeMode 
@@ -263,8 +269,9 @@ public class TelemetryGraph
                         , whenFinished 
                         , whenClosed 
                         );
-                    
+                
                 }
+                tracer.info("Read a total of "+Graph.graphHashMap.size()+" graphs");
 
                 Node.nodeHashMap = new LinkedHashMap<>();
 
@@ -289,6 +296,8 @@ public class TelemetryGraph
                     String outputNodes = operRs.getString(col++);
                     int numOutputNodes = operRs.getInt(col++);
 
+                    //tracer.info("Node="+nodeId+", graph="+graphId);
+
                     Node node = new Node(graphId, nodeId, lastExecResult, schedState
                                                     , netInputRows, netInputBytes
                                                     , netOutputRows, netOutputBytes
@@ -299,17 +308,14 @@ public class TelemetryGraph
                                                     );
                 }
 
+                tracer.info("Read a total of "+Node.nodeHashMap.size()+" nodes (operators)");
 
-                if (i > 0) {
-                    // don't report first dataset because graphs and nodes won't match up
 
-                    // we have the raw data; now link up the nodes with edges and filter out unwanted nodes / edges
-                    processNodes();
+                // we have the raw data; now link up the nodes with edges and filter out unwanted nodes / edges
+                processNodes();
 
-                    // and write out all nodes and edges we haven't deleted
-                    writeNodesAndEdges(i);
-                }
-
+                // and write out all nodes and edges we haven't deleted
+                writeNodesAndEdges(i);
              
             }
         } catch (SQLException se) {
