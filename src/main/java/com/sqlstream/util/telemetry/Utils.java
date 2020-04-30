@@ -42,4 +42,39 @@ public class Utils {
         value *= Long.signum(bytes);
         return String.format("%.1f %ci%s", value / 1024.0, ci.current(), suffix);
     }
+
+    protected static String lookupSchedState(String schedState) {
+        switch (schedState) {
+            case "B":
+                return "Blocked";
+
+            case "C":
+                return "Closed";
+            
+            case "E":
+                return "Finished";
+
+            case "N":
+                return "Not runnable";
+
+            case "O":
+                return "Open";
+
+            case "R":
+                return "Runnable";
+
+            case "R*":
+                return "Running";
+
+            case "T":
+                return "Suspended";
+
+            case "Z":
+                return "Removed";
+
+
+            default:
+                return schedState;
+        }
+    }
 }

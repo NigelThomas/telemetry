@@ -65,10 +65,10 @@ public class Node {
     static final String PIPE = "|";
 
     // cell colors
-    static final String GREENCOLOR = "bgcolor=\"green\" ";
-    static final String REDCOLOR = "bgcolor=\"red\" ";
+    static final String GOODCOLOR = "bgcolor=\"green\" ";
+    static final String ALERTCOLOR = "bgcolor=\"red\" ";
     static final String YELLOWCOLOR = "bgcolor=\"yellow\" ";
-    static final String BLUECOLOR = " bgcolor=\"blue\" ";
+    static final String ENDOFSTREAMCOLOR = " bgcolor=\"gray\" ";
 
     static final String BOLD = "<b>";
     static final String UNBOLD = "</b>";
@@ -95,7 +95,7 @@ public class Node {
         this.graphId = graphId;
         this.nodeId = nodeId;
         this.lastExecResult = lastExecResult;
-        this.schedState = schedState;
+        this.schedState = schedState.trim();
         this.netInputRows = netInputRows;
         this.netInputBytes = netInputBytes;
         this.netOutputRows = netOutputRows;
@@ -227,13 +227,13 @@ public class Node {
     protected String statusColor(String status) {
         switch (status) {
             case "UND":
-                return GREENCOLOR;
+                return GOODCOLOR;
             case "OVF":
-                return REDCOLOR;
+                return ALERTCOLOR;
             case "RUN":
-                return GREENCOLOR;
+                return GOODCOLOR;
             case "EOS":
-                return BLUECOLOR;
+                return ENDOFSTREAMCOLOR;
             case "YLD":
             default:
                 return YELLOWCOLOR;
@@ -322,7 +322,7 @@ public class Node {
                 "[penwidth=3.0,style=\"bold,filled\",shape=rect,fillcolor=" +
                 nodeColor + ", label=< <table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"8\"" +
                 ((queryPlan.length() == 0) ? "" : " tooltip=" + QUOTE + StringEscapeUtils.escapeHtml(queryPlan) + QUOTE + " href="+QUOTE+"bogus"+QUOTE) + ">" + 
-                "<tr>" + nodeCell() + lookupOperation(nameInQueryPlan) + ENDCELL + "<td " + statusColor(lastExecResult) + ">" + lookupStatus(lastExecResult) + " " + schedState + ENDROW +
+                "<tr>" + nodeCell() + lookupOperation(nameInQueryPlan) + ENDCELL + "<td " + statusColor(lastExecResult) + ">" + Utils.lookupSchedState(schedState) + "<br/>" + lookupStatus(lastExecResult) + ENDROW +
                 STARTROW+ "&nbsp;" + NEWCELL + "Rowtime" + NEWCELL + "Rows" + NEWCELL + "Bytes" + ENDROW +
                 STARTROW+ "Input: " + NEWCELL + inputRowtimeClock  + NEWCELL +  ( (netInputRows == 0) ? QUERY : Utils.formatLong(netInputRows) ) + NEWCELL + Utils.humanReadableByteCountSI(netInputBytes,"B") + ENDROW +
                 STARTROW+ "Output: " + NEWCELL + outputRowtimeClock + NEWCELL + ( (netOutputRows == 0) ? QUERY : Utils.formatLong(netOutputRows) ) + NEWCELL + Utils.humanReadableByteCountSI(netOutputBytes,"B") +  ENDROW +

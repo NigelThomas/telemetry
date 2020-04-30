@@ -66,28 +66,7 @@ public class Graph {
   static final String SQLFONT = "<font face=\"courier\" point-size=\"8\">";
   static final String ENDFONT = "</font>";
 
-  protected static String lookupSchedState(String schedState) {
-        switch (schedState) {
-            case "B":
-                return "Blocked";
-
-            case "O":
-                return "Open";
-
-            case "R":
-                return "Runnable";
-
-            case "E":
-                return "End of Stream";
-
-            case "C":
-                return "Closed";
-            
-            default:
-                return schedState;
-        }
-    }
-
+  
     protected Graph
         ( String graphId
         , int statementId
@@ -222,7 +201,7 @@ public class Graph {
 
         if (graphInfoLevel > 0) {
                 result.append(STARTROW+ "Graph ID" + NEWCELL + "State"  + NEWCELL + "Session Id" + NEWCELL + "Statement Id" + ENDROW +
-                              STARTROW+ graphId + NEWCELL  + lookupSchedState(schedState) + NEWCELL + sessionId + NEWCELL +  + statementId  + ENDROW
+                              STARTROW+ graphId + NEWCELL  + Utils.lookupSchedState(schedState) + NEWCELL + sessionId + NEWCELL +  + statementId  + ENDROW
                 );
 
                 if (graphInfoLevel > 1) {
