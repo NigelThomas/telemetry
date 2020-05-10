@@ -12,6 +12,7 @@ import java.util.logging.Level;
 
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileDescriptor;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -42,7 +43,7 @@ public class TelemetryGraph
         required = false)
     private boolean includeDeadGraphs = false;
 
-@Option(
+    @Option(
             name = "-f",
             aliases = {"--frequency"},
             usage = "repeat every <frequency> seconds",
@@ -76,6 +77,23 @@ public class TelemetryGraph
             usage = "include certain proxy nodes that are normally hidden",
             required = false)
     static private boolean showProxyDetail = false;
+
+    @Option(
+        name = "-c",
+        aliases = {"--write-to-console"},
+        usage = "write output to console (stdout) - so can pipe directly to dot",
+        required = false)
+    static private boolean writeToConsole = false;
+
+    @Option(
+        name = "-b",
+        aliases = {"--base-filename"},
+        usage = "prefix for path/to/filename - files are also numbered and given a .dot type",
+        metaVar = "filename",
+        required = false)
+    static String baseFilename = "telemetry";
+
+
 
     /*
     @Option(
@@ -357,7 +375,7 @@ public class TelemetryGraph
     
        
     private void writeNodesAndEdges(int i) {
-        try (FileWriter fw = new FileWriter(new File("telemetry_"+i+".dot"))) {
+        try (FileWriter fw = (writeToConsole ? new FileWriter( FileDescriptor.out) : new FileWriter(new File(baseFilename+"_"+i+".dot")))) {
             fw.write("digraph {\n");
 
             /* Exclude graphs - instead we include graph data into first node
@@ -372,6 +390,7 @@ public class TelemetryGraph
             }
 
             fw.write("}");
+            fw.flush();
             fw.close();
         } catch (IOException ioe) {
             tracer.log(Level.SEVERE, "Exception writing file #"+i, ioe);

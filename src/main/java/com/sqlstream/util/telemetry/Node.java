@@ -379,7 +379,11 @@ public class Node {
                 if (tracer.isLoggable(Level.FINEST)) tracer.finest("replacing children for "+nodeId);
                 
                 Node parentNode = nodeHashMap.get(nodeId);
-                parentNode.replaceChildren(this, childNodes);
+                if (parentNode == null) {
+                    tracer.warning("no node for "+nodeId);
+                } else {
+                    parentNode.replaceChildren(this, childNodes);
+                }
             }
             
         } else {

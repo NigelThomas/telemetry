@@ -215,8 +215,8 @@ public class Graph {
                                  );
                         if (graphInfoLevel > 3) {
                             result.append(STARTROW+ "Rows" + NEWCELL + "Row Rate" + NEWCELL + "Bytes" + NEWCELL + "Byte Rate" + ENDROW +
-                                        STARTROW+ "Input:"  +( (netInputRows == 0) ? QUERY : Utils.formatLong(netInputRows)) + NEWCELL + Utils.formatDouble(netInputRowRate) + NEWCELL + Utils.humanReadableByteCountSI(netInputBytes,"B") + NEWCELL + Utils.formatDouble(netInputRate) + ENDROW +
-                                        STARTROW+ "Output"  + ( (netOutputRows == 0) ? QUERY : Utils.formatLong(netOutputRows)) + NEWCELL + Utils.formatDouble(netOutputRowRate) + NEWCELL + Utils.humanReadableByteCountSI(netOutputBytes,"B") + NEWCELL + Utils.formatDouble(netOutputRate) + ENDROW
+                                        STARTROW+ "Input: "  +( (netInputRows == 0) ? QUERY : Utils.formatLong(netInputRows)) + NEWCELL + Utils.formatDouble(netInputRowRate) + NEWCELL + Utils.humanReadableByteCountSI(netInputBytes,"B") + NEWCELL + Utils.formatDouble(netInputRate) + ENDROW +
+                                        STARTROW+ "Output: "  + ( (netOutputRows == 0) ? QUERY : Utils.formatLong(netOutputRows)) + NEWCELL + Utils.formatDouble(netOutputRowRate) + NEWCELL + Utils.humanReadableByteCountSI(netOutputBytes,"B") + NEWCELL + Utils.formatDouble(netOutputRate) + ENDROW
                                         );
                     }
                 }
