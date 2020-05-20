@@ -43,14 +43,14 @@ public class TelemetryGraph
         required = false)
     private boolean includeDeadGraphs = false;
 
-    // TODO code for session graph is turned off
+    // TODO should code for session graph be turned off
     // because we need at least neighboring nodes to be shown
-    
-    // @Option(
-    //     name = "-s",
-    //     aliases = {"--session-id"},
-    //     usage = "present sub-graph from a single session",
-    //     required = false)
+
+    @Option(
+        name = "-s",
+        aliases = {"--session-id"},
+        usage = "present sub-graph from a single session",
+        required = false)
     private int sessionId = 0;
 
     @Option(
@@ -178,7 +178,7 @@ public class TelemetryGraph
             // do the time formatting / defaulting in SQL for convenience
 
 
-            StringBuffer graphSql = new StringBuffer(
+            String graphSql = 
                 "select CAST(GRAPH_ID AS VARCHAR(8)) AS GRAPH_ID, STATEMENT_ID"+
                     ", g.SESSION_ID, s.SESSION_NAME, SOURCE_SQL" +
                     ",SCHED_STATE,CLOSE_MODE,IS_GLOBAL_NEXUS,IS_AUTO_CLOSE"+
@@ -191,13 +191,10 @@ public class TelemetryGraph
                     ",CAST(WHEN_STARTED AS VARCHAR(32)) AS WHEN_STARTED"+
                     ",CAST(WHEN_FINISHED AS VARCHAR(32)) AS WHEN_FINISHED"+
                     ",CAST(WHEN_CLOSED AS VARCHAR(32)) AS WHEN_CLOSED"+
-            " from TABLE(SYS_BOOT.MGMT.getStreamGraphInfo(0,0)) g" +
-            " LEFT JOIN SYS_BOOT.MGMT.SESSIONS_VIEW s ON s.ID = g.SESSION_ID");
+            " from TABLE(SYS_BOOT.MGMT.getStreamGraphInfo("+sessionId+",0)) g" +
+            " LEFT JOIN SYS_BOOT.MGMT.SESSIONS_VIEW s ON s.ID = g.SESSION_ID";
             ;
 
-            if (sessionId != 0) {
-                graphSql.append(" WHERE g.SESSION_ID = "+sessionId);
-            }
 
             tracer.info(graphSql.toString());
             PreparedStatement graphPs = connection.prepareStatement(graphSql.toString());
@@ -205,7 +202,7 @@ public class TelemetryGraph
             // try to use same telemetry snapshot, else nodes and graphs may be inconsistent
             // so we assume we can use a 2 second old snapshot (assume 2 < frequency)
 
-            StringBuffer operatorSql = new StringBuffer(
+            String operatorSql = 
                 "select CAST(GRAPH_ID AS VARCHAR(8)) AS GRAPH_ID_STR, NODE_ID" +
                     ", LAST_EXEC_RESULT, SCHED_STATE" +
                     ", NET_INPUT_ROWS, NET_INPUT_BYTES" +
@@ -215,14 +212,10 @@ public class TelemetryGraph
                     ", NAME_IN_QUERY_PLAN, QUERY_PLAN" +
                     ", INPUT_NODES, NUM_INPUTS" +
                     ", OUTPUT_NODES, NUM_OUTPUTS" +
-            " from TABLE(SYS_BOOT.MGMT.getStreamOperatorInfo(0,2)) op" +
+            " from TABLE(SYS_BOOT.MGMT.getStreamOperatorInfo("+sessionId+",2)) op" +
             " WHERE (NAME_IN_QUERY_PLAN NOT LIKE 'StreamSinkPortRel%' AND NAME_IN_QUERY_PLAN NOT LIKE 'NetworkRel%')" 
-            ) ;
+            ;
             
-            if (sessionId != 0) {
-                operatorSql.append(" AND op.GRAPH_ID IN (SELECT g.GRAPH_ID from TABLE(SYS_BOOT.MGMT.getStreamGraphInfo(0,2)) g WHERE g.SESSION_ID = " + sessionId +")");
-            }
-
             tracer.info(operatorSql.toString());
 
             PreparedStatement operatorPs = connection.prepareStatement(operatorSql.toString());
@@ -245,6 +238,7 @@ public class TelemetryGraph
                 tracer.info("Starting iteration "+i);
 
                 Graph.graphHashMap = new LinkedHashMap<>();
+
                 ResultSet graphRs = graphPs.executeQuery();
 
                 while (graphRs.next()) {
@@ -318,6 +312,7 @@ public class TelemetryGraph
 
                 Node.nodeHashMap = new LinkedHashMap<>();
 
+                
                 ResultSet operRs = operatorPs.executeQuery();
                 while (operRs.next()) {
                     int col = 1;
