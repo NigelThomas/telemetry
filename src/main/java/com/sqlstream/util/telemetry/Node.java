@@ -259,6 +259,8 @@ public class Node {
             planElement = "Streaming GROUP BY";
         } else if (in.startsWith("AspenStreamTableJoinRel",0)) {
             planElement = "Stream/Table Join";
+        } else if (in.startsWith("AspenWindowedJoinRel",0)) {
+            planElement = "Stream/Stream Join";
         } else if (in.startsWith("LhxJoinRel",0)) {
             planElement = "Left Join";
         } else if (in.startsWith("FarragoJavaUdxRel",0)) {
