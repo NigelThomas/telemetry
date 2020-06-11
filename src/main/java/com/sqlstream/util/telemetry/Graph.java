@@ -182,8 +182,8 @@ public class Graph {
      * @param nameInQueryPlan
      * @return
      */
-    protected String displaySQL(String nameInQueryPlan) {
-        return nameInQueryPlan.equals(sourceSql) ? "" : displaySQL(sourceSql, 4, 120);
+    protected String displaySQL(String nameInQueryPlan, int tabCols) {
+        return nameInQueryPlan.equals(sourceSql) ? "" : displaySQL(sourceSql, tabCols, 120);
     }
 
     protected String displaySessionName(int tabCols) {
@@ -196,30 +196,31 @@ public class Graph {
     protected String getGraphDot(int graphInfoLevel, String nameInQueryPlan) {
         StringBuffer result = new StringBuffer();
         
-        result.append(displaySQL(nameInQueryPlan));
-        result.append(displaySessionName(4));
+        boolean show6cols = (graphInfoLevel > 1);
+        int tabCols = (show6cols)?6:4;
+
+        result.append(displaySQL(nameInQueryPlan, tabCols));
+        result.append(displaySessionName(tabCols));
+
 
         if (graphInfoLevel > 0) {
-                result.append(STARTROW+ "Graph ID" + NEWCELL + "State"  + NEWCELL + "Session Id" + NEWCELL + "Statement Id" + ENDROW +
-                              STARTROW+ graphId + NEWCELL  + Utils.lookupSchedState(schedState) + NEWCELL + sessionId + NEWCELL +  + statementId  + ENDROW
+            result.append(STARTROW+ "Graph State" + NEWCELL + "Net Mem" + NEWCELL + "Max Mem"  + NEWCELL + "Exec Time"  + 
+                           ((show6cols)? NEWCELL + "Opening Time" + NEWCELL+ "Stmt ID" : "") +  ENDROW +
+                    STARTROW + Utils.lookupSchedState(schedState)+ NEWCELL + Utils.humanReadableByteCountSI(netMemoryBytes,"B")+ NEWCELL  + Utils.humanReadableByteCountSI(maxMemoryBytes,"B") + NEWCELL  + totalExecutionTime + 
+                           ((show6cols)? NEWCELL  + totalOpeningTime + NEWCELL +  + statementId : "") +  ENDROW
                 );
 
                 if (graphInfoLevel > 1) {
-                    result.append(STARTROW+ "Net Mem" + NEWCELL + "Max Mem"  + NEWCELL + "Open Time"  + NEWCELL + "Exec time"  +  ENDROW +
-                                  STARTROW+ Utils.humanReadableByteCountSI(netMemoryBytes,"B")+ NEWCELL  + Utils.humanReadableByteCountSI(maxMemoryBytes,"B") + NEWCELL  + totalOpeningTime + NEWCELL  + totalExecutionTime +  ENDROW
-                    );
-
+                    result.append(STARTROW+ "When Opened" + NEWCELL + "When Started"  + NEWCELL + "When Finished"  + NEWCELL + "When Closed"  + NEWCELL + "Data Buffers" + NEWCELL + "Live Nodes" + ENDROW +
+                                STARTROW+ whenOpened + NEWCELL  + whenStarted + NEWCELL  + whenFinished + NEWCELL  + whenClosed + NEWCELL + numDataBuffers + NEWCELL + numLiveNodes + ENDROW
+                            );
                     if (graphInfoLevel > 2) {
-                        result.append(STARTROW+ "When Opened" + NEWCELL + "When Started"  + NEWCELL + "When Closed"  + NEWCELL + "When Finished"  +  ENDROW +
-                                    STARTROW+ whenOpened + NEWCELL  + whenStarted + NEWCELL  + whenClosed + NEWCELL  + whenFinished +  ENDROW
-                                 );
-                        if (graphInfoLevel > 3) {
-                            result.append(STARTROW+ "Rows" + NEWCELL + "Row Rate" + NEWCELL + "Bytes" + NEWCELL + "Byte Rate" + ENDROW +
-                                        STARTROW+ "Input: "  +( (netInputRows == 0) ? QUERY : Utils.formatLong(netInputRows)) + NEWCELL + Utils.formatDouble(netInputRowRate) + NEWCELL + Utils.humanReadableByteCountSI(netInputBytes,"B") + NEWCELL + Utils.formatDouble(netInputRate) + ENDROW +
-                                        STARTROW+ "Output: "  + ( (netOutputRows == 0) ? QUERY : Utils.formatLong(netOutputRows)) + NEWCELL + Utils.formatDouble(netOutputRowRate) + NEWCELL + Utils.humanReadableByteCountSI(netOutputBytes,"B") + NEWCELL + Utils.formatDouble(netOutputRate) + ENDROW
-                                        );
-                    }
-                }
+                        result.append(STARTROW+ " " + NEWCELL + " " + NEWCELL  + "Bytes" + NEWCELL + "Bytes/sec" + NEWCELL + "Rows" + NEWCELL + "Rows/sec" + ENDROW +
+                            STARTROW+ " " + NEWCELL +"Input:" + NEWCELL + Utils.humanReadableByteCountSI(netInputBytes,"B") + NEWCELL + Utils.formatDouble(netInputRate) + NEWCELL +( (netInputRows == 0) ? QUERY : Utils.formatLong(netInputRows)) + NEWCELL + Utils.formatDouble(netInputRowRate) + ENDROW +
+                            STARTROW+ " " + NEWCELL +"Output:" + NEWCELL + Utils.humanReadableByteCountSI(netOutputBytes,"B") + NEWCELL + Utils.formatDouble(netOutputRate) + NEWCELL  + ( (netOutputRows == 0) ? QUERY : Utils.formatLong(netOutputRows)) + NEWCELL + Utils.formatDouble(netOutputRowRate) + ENDROW
+                        );
+        }
+                
             }
         }
 

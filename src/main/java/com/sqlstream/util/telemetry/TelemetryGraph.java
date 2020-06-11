@@ -191,13 +191,14 @@ public class TelemetryGraph
                     ",CAST(WHEN_STARTED AS VARCHAR(32)) AS WHEN_STARTED"+
                     ",CAST(WHEN_FINISHED AS VARCHAR(32)) AS WHEN_FINISHED"+
                     ",CAST(WHEN_CLOSED AS VARCHAR(32)) AS WHEN_CLOSED"+
-            " from TABLE(SYS_BOOT.MGMT.getStreamGraphInfo("+sessionId+",0)) g" +
+            " from TABLE(SYS_BOOT.MGMT.getStreamGraphInfo(CAST(? AS INT),0)) g" +
             " LEFT JOIN SYS_BOOT.MGMT.SESSIONS_VIEW s ON s.ID = g.SESSION_ID";
             ;
 
 
             tracer.info(graphSql.toString());
             PreparedStatement graphPs = connection.prepareStatement(graphSql.toString());
+            graphPs.setInt(1, sessionId);
 
             // try to use same telemetry snapshot, else nodes and graphs may be inconsistent
             // so we assume we can use a 2 second old snapshot (assume 2 < frequency)
@@ -205,22 +206,23 @@ public class TelemetryGraph
             String operatorSql = 
                 "select CAST(GRAPH_ID AS VARCHAR(8)) AS GRAPH_ID_STR, NODE_ID" +
                     ", LAST_EXEC_RESULT, SCHED_STATE" +
-                    ", NET_INPUT_ROWS, NET_INPUT_BYTES" +
-                    ", NET_OUTPUT_ROWS, NET_OUTPUT_BYTES" +
+                    ", NET_INPUT_ROWS, NET_INPUT_BYTES, NET_INPUT_ROW_RATE, NET_INPUT_RATE" +
+                    ", NET_OUTPUT_ROWS, NET_OUTPUT_BYTES, NET_OUTPUT_ROW_RATE, NET_OUTPUT_RATE" +
                     ", CAST(COALESCE(INPUT_ROWTIME_CLOCK, CURRENT_TIMESTAMP) AS VARCHAR(32)) AS INPUT_ROWTIME_CLOCK" +
                     ", CAST(COALESCE(OUTPUT_ROWTIME_CLOCK, CURRENT_TIMESTAMP) AS VARCHAR(32)) AS OUTPUT_ROWTIME_CLOCK" + 
                     ", NAME_IN_QUERY_PLAN, QUERY_PLAN" +
                     ", INPUT_NODES, NUM_INPUTS" +
                     ", OUTPUT_NODES, NUM_OUTPUTS" +
-            " from TABLE(SYS_BOOT.MGMT.getStreamOperatorInfo("+sessionId+",2)) op" +
+                    ", NET_SCHEDULE_TIME, NET_EXECUTION_TIME, EXECUTION_COUNT" +
+            " from TABLE(SYS_BOOT.MGMT.getStreamOperatorInfo(CAST(? AS INT),2)) op" +
             " WHERE (NAME_IN_QUERY_PLAN NOT LIKE 'StreamSinkPortRel%' AND NAME_IN_QUERY_PLAN NOT LIKE 'NetworkRel%')" 
             ;
             
             tracer.info(operatorSql.toString());
 
             PreparedStatement operatorPs = connection.prepareStatement(operatorSql.toString());
+            operatorPs.setInt(1, sessionId);
 
-            int graphIdInt = 0;
 
             // Read N times from statement graph
             for (int i=1; i <= repeatCount; i++) {
@@ -322,8 +324,12 @@ public class TelemetryGraph
                     String schedState = operRs.getString(col++);
                     long netInputRows = operRs.getLong(col++);
                     long netInputBytes = operRs.getLong(col++);
+                    double netInputRowRate = operRs.getDouble(col++);
+                    double netInputRate = operRs.getDouble(col++);
                     long netOutputRows = operRs.getLong(col++);
                     long netOutputBytes = operRs.getLong(col++);
+                    double netOutputRowRate = operRs.getDouble(col++);
+                    double netOutputRate = operRs.getDouble(col++);
                     
                     String inputRowtimeClock = operRs.getString(col++);
                     String outputRowtimeClock = operRs.getString(col++);
@@ -333,16 +339,20 @@ public class TelemetryGraph
                     int numInputNodes = operRs.getInt(col++);
                     String outputNodes = operRs.getString(col++);
                     int numOutputNodes = operRs.getInt(col++);
+                    double netScheduleTime = operRs.getDouble(col++);
+                    double netExecutionTime = operRs.getDouble(col++);
+                    long executionCount = operRs.getLong(col++);
 
                     //tracer.info("Node="+nodeId+", graph="+graphId);
 
                     Node node = new Node(graphId, nodeId, lastExecResult, schedState
-                                                    , netInputRows, netInputBytes
-                                                    , netOutputRows, netOutputBytes
+                                                    , netInputRows, netInputBytes, netInputRowRate, netInputRate
+                                                    , netOutputRows, netOutputBytes, netOutputRowRate, netOutputRate
                                                     , inputRowtimeClock, outputRowtimeClock
                                                     , nameInQueryPlan, queryPlan
                                                     , inputNodes, numInputNodes
                                                     , outputNodes, numOutputNodes
+                                                    , netScheduleTime, netExecutionTime, executionCount
                                                     );
                 }
 

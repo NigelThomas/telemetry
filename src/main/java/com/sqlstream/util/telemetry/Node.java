@@ -11,8 +11,6 @@ import java.util.logging.Level;
 
 
 import org.apache.commons.lang.StringEscapeUtils;
-
-
  
 
 public class Node {
@@ -24,15 +22,25 @@ public class Node {
     String nodeId;
     String lastExecResult;
     String schedState;
+    
     long netInputRows;
     long netInputBytes;
+    double netInputRowRate;
+    double netInputRate;
+
     long netOutputRows;
     long netOutputBytes;
+    double netOutputRowRate;
+    double netOutputRate;
+
     String inputRowtimeClock;
     String outputRowtimeClock;
     String nameInQueryPlan;
     String queryPlan;
     int numInputNodes;
+    double netScheduleTime;
+    double netExecutionTime;
+    long executionCount;
 
     String inputNodes;      // flat string representation
     String[] inputNodeIds;  // divided into array
@@ -81,8 +89,12 @@ public class Node {
                     , String schedState
                     , long netInputRows
                     , long netInputBytes
+                    , double netInputRowRate
+                    , double netInputRate
                     , long netOutputRows
                     , long netOutputBytes
+                    , double netOutputRowRate
+                    , double netOutputRate
                     , String inputRowtimeClock
                     , String outputRowtimeClock
                     , String nameInQueryPlan
@@ -91,6 +103,9 @@ public class Node {
                     , int numInputNodes
                     , String outputNodes
                     , int numOutputNodes
+                    , double netScheduleTime
+                    , double netExecutionTime
+                    , long executionCount
                     ){
         this.graphId = graphId;
         this.nodeId = nodeId;
@@ -98,8 +113,12 @@ public class Node {
         this.schedState = schedState.trim();
         this.netInputRows = netInputRows;
         this.netInputBytes = netInputBytes;
+        this.netInputRowRate = netInputRowRate;
+        this.netInputRate = netInputRate;
         this.netOutputRows = netOutputRows;
         this.netOutputBytes = netOutputBytes;
+        this.netOutputRowRate = netOutputRowRate;
+        this.netOutputRate = netOutputRate;
         this.inputRowtimeClock = inputRowtimeClock;
         this.outputRowtimeClock = outputRowtimeClock; 
         this.nameInQueryPlan = nameInQueryPlan;
@@ -108,6 +127,9 @@ public class Node {
         this.inputNodes = inputNodes;
         this.numOutputNodes = numOutputNodes;
         this.outputNodes = outputNodes;
+        this.netExecutionTime = netExecutionTime;
+        this.netScheduleTime = netScheduleTime;
+        this.executionCount = executionCount;
 
         if (numInputNodes == 0 || inputNodes == null || inputNodes.length() == 0) {
             this.inputNodeIds = new String[]{};
@@ -246,7 +268,7 @@ public class Node {
      * @param in
      * @return
      */
-    protected String lookupOperation(String in) {
+    protected String lookupOperation(String in, int colSpan) {
         String planElement = null;
 
         if (in.startsWith("AspenCalcRel",0)) {
@@ -277,9 +299,9 @@ public class Node {
         
         if (planElement == null) {
             // TODO get a complete list of operation names
-            return "<td colspan=\"2\">" + BOLD + in + UNBOLD;
+            return "<td colspan=\""+colSpan+ "\">" + BOLD + in + UNBOLD;
         } else {
-            return "<td colspan=\"2\" href=\"bogus\" tooltip=\"" +in +"\">" + BOLD + planElement + UNBOLD;
+            return "<td colspan=\""+colSpan+"\" href=\"bogus\" tooltip=\"" +in +"\">" + BOLD + planElement + UNBOLD;
         }
 
     }
@@ -321,15 +343,27 @@ public class Node {
             nodeColor = "LightBlue";
         }
 
+        // graphInfoLevel > 1 => 6 columns
+        // graphInfoLevel <= 1 => 4 columns
+        boolean show6cols = (graphInfoLevel > 1);
+        int lookupColspan = (show6cols?4:2);
 
         return INDENT + QUOTE + nodeId + QUOTE + SPACE + 
                 "[penwidth=3.0,style=\"bold,filled\",shape=rect,fillcolor=" +
                 nodeColor + ", label=< <table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"8\"" +
                 ((queryPlan.length() == 0) ? "" : " tooltip=" + QUOTE + StringEscapeUtils.escapeHtml(queryPlan) + QUOTE + " href="+QUOTE+"bogus"+QUOTE) + ">" + 
-                "<tr>" + nodeCell() + lookupOperation(nameInQueryPlan) + ENDCELL + "<td " + statusColor(lastExecResult) + ">" + Utils.lookupSchedState(schedState) + "<br/>" + lookupStatus(lastExecResult) + ENDROW +
-                STARTROW+ "&nbsp;" + NEWCELL + "Rowtime" + NEWCELL + "Rows" + NEWCELL + "Bytes" + ENDROW +
-                STARTROW+ "Input: " + NEWCELL + inputRowtimeClock  + NEWCELL +  ( (netInputRows == 0) ? QUERY : Utils.formatLong(netInputRows) ) + NEWCELL + Utils.humanReadableByteCountSI(netInputBytes,"B") + ENDROW +
-                STARTROW+ "Output: " + NEWCELL + outputRowtimeClock + NEWCELL + ( (netOutputRows == 0) ? QUERY : Utils.formatLong(netOutputRows) ) + NEWCELL + Utils.humanReadableByteCountSI(netOutputBytes,"B") +  ENDROW +
+                "<tr>" + nodeCell() + lookupOperation(nameInQueryPlan,lookupColspan) + ENDCELL + "<td " + statusColor(lastExecResult) + ">" + Utils.lookupSchedState(schedState) + "<br/>" + lookupStatus(lastExecResult) + ENDROW +
+                STARTROW+ ((show6cols) ? "Sched Time:" + NEWCELL + Utils.formatDouble(netScheduleTime) + NEWCELL : "")  
+                     + "Exec Time: " + NEWCELL + Utils.formatDouble(netExecutionTime) + NEWCELL + "Exec Count" + NEWCELL + Utils.formatLong(executionCount) +  ENDROW +
+                STARTROW+ " " + NEWCELL + "Rowtime" + 
+                       ((show6cols) ? NEWCELL + "Bytes" + NEWCELL + "Bytes/sec" : "") +
+                       NEWCELL + "Rows" + NEWCELL+ "Rows/sec" + ENDROW +
+                STARTROW+ "Input: " + NEWCELL + inputRowtimeClock + NEWCELL + 
+                     ((show6cols) ? Utils.humanReadableByteCountSI(netInputBytes,"B") + NEWCELL + Utils.formatDouble(netInputRate) + NEWCELL : "") +  
+                     ( (netInputRows == 0) ? QUERY : Utils.formatLong(netInputRows) )  + NEWCELL + Utils.formatDouble(netInputRowRate) +  ENDROW +
+                STARTROW+ "Output: " + NEWCELL + outputRowtimeClock + NEWCELL + 
+                     ((show6cols) ? Utils.humanReadableByteCountSI(netOutputBytes,"B")  + NEWCELL + Utils.formatDouble(netOutputRate)+ NEWCELL : "")  +
+                     ( (netOutputRows == 0) ? QUERY : Utils.formatLong(netOutputRows) ) + NEWCELL + Utils.formatDouble(netOutputRowRate) +  ENDROW +
                 // if first node in graph, include remaining graph details            
                 ((graph != null) ? graph.getGraphDot(graphInfoLevel, nameInQueryPlan) : "") +
                 "</table> >];\n" ;
