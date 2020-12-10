@@ -65,8 +65,9 @@ SELECT
               NODE_ID || '";'
          ELSE NULL
          END AS "        "
-FROM TABLE(sys_boot.mgmt.getStreamOperatorInfo(0, 0)) WHERE LAST_EXEC_RESULT <> 'EOS' AND (NAME_IN_QUERY_PLAN NOT LIKE 'StreamSinkPortRel%' AND NAME_IN_QUERY_PLAN NOT LIKE 'NetworkRel%')
--- and node_id in ('1423.2','1421.0','1422.0')
+FROM TABLE(sys_boot.mgmt.getStreamOperatorInfo(0, 0)) o 
+JOIN TABLE(sys_boot.mgmt.getStreamOperatorInfo(0, 0)) g on g.graph_id = o.graph_id
+WHERE o.LAST_EXEC_RESULT <> 'EOS' AND (NAME_IN_QUERY_PLAN NOT LIKE 'StreamSinkPortRel%' AND NAME_IN_QUERY_PLAN NOT LIKE 'NetworkRel%') 
 ;
 
 SELECT * FROM (VALUES('}')) AS v("   ");
