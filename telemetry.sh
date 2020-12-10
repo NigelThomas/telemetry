@@ -1,7 +1,15 @@
 . /etc/sqlstream/environment
 
-for i in `seq 1 1`
+reps=$1
+sleep=$2
+
+: ${reps:=1}
+: ${sleep:=5}
+
+for i in `seq 1 $reps`
 do
    $SQLSTREAM_HOME/bin/sqllineClient --incremental --run=telemetry.sql > querygraph$i.dot
-   sleep 5
+   if ( "$i" != "$reps" ]
+	sleep 5
+   fi
 done

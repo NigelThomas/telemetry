@@ -66,7 +66,6 @@ SELECT
          ELSE NULL
          END AS "        "
 FROM TABLE(sys_boot.mgmt.getStreamOperatorInfo(0, 0)) o 
-JOIN TABLE(sys_boot.mgmt.getStreamOperatorInfo(0, 0)) g on g.graph_id = o.graph_id
 WHERE o.LAST_EXEC_RESULT <> 'EOS' AND (NAME_IN_QUERY_PLAN NOT LIKE 'StreamSinkPortRel%' AND NAME_IN_QUERY_PLAN NOT LIKE 'NetworkRel%') 
 ;
 
