@@ -1,0 +1,6 @@
+*.svg
+*.png
+*.dot
+*.jar
+classes/**
+lib/**
